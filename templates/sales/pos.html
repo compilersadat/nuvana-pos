@@ -77,7 +77,7 @@
           <div class="row g-3 mb-2">
             <div class="col-md-6">
               <label class="form-label">Customer</label>
-              {{ form.customer|add_class:"form-select" }}
+              {{ form.customer|add_class:"form-select js-enhance-select"|attr:"data-allow-clear:true"|attr:"data-placeholder:Select customer" }}
             </div>
             <div class="col-md-3">
               <label class="form-label">Date</label>
@@ -152,7 +152,7 @@
 
           <div class="mb-2">
             <label class="form-label" for="id_payment_method">Payment method</label>
-            {{ form.payment_method|add_class:"form-select" }}
+            {{ form.payment_method|add_class:"form-select js-enhance-select"|attr:"data-allow-clear:true"|attr:"data-placeholder:Select payment method" }}
           </div>
           <div class="mb-3">
             <label class="form-label" for="id_paid_amount">Paid amount</label>

@@ -2,63 +2,174 @@
 {% load widget_tweaks %}
 {% block title %}{{ title }} — Stationery POS{% endblock %}
 {% block breadcrumb %}<a href="{% url 'product_list' %}" class="text-decoration-none">Products</a> / {{ title }}{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-12 col-lg-10">
-    <form method="post" class="card shadow-sm">
+  <div class="col-12 col-xl-10">
+    <form method="post" class="card shadow-sm border-0" id="product-form" novalidate>
       {% csrf_token %}
-      <div class="card-header bg-white">
-        <h5 class="m-0">{{ title }}</h5>
+
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-box-seam text-primary"></i>
+          <h5 class="m-0">{{ title }}</h5>
+        </div>
+        <a href="{% url 'product_list' %}" class="btn btn-sm btn-light"><i class="bi bi-arrow-left me-1"></i>Back to list</a>
       </div>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger m-3 mb-0">
+          <i class="bi bi-exclamation-octagon me-1"></i>
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">Code</label>
-            {{ form.code|add_class:"form-control"|attr:"autofocus:autofocus" }}
+        <!-- Identity -->
+        <div class="mb-3 pb-2 border-bottom">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-info-square text-secondary"></i>
+            <div class="fw-semibold">Identity</div>
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Barcode</label>
-            {{ form.barcode|add_class:"form-control" }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Name</label>
-            {{ form.name|add_class:"form-control" }}
-          </div>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Code <span class="text-danger">*</span></label>
+              {{ form.code}}
+              {% if form.code.errors %}
+                <div class="invalid-feedback">{{ form.code.errors|striptags }}</div>
+              {% else %}
+                <div class="form-text">Unique SKU to identify the product.</div>
+              {% endif %}
+            </div>
 
-          <div class="col-md-4">
-            <label class="form-label">Category</label>
-            {{ form.category|add_class:"form-select" }}
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Unit Price</label>
-            {{ form.unit_price|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Cost Price</label>
-            {{ form.cost_price|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Tax %</label>
-            {{ form.tax_percent|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Reorder Level</label>
-            {{ form.reorder_level|add_class:"form-control"|attr:"min:0" }}
-          </div>
+            <div class="col-md-3">
+              <label class="form-label">Barcode</label>
+              {{ form.barcode }}
+              {% if form.barcode.errors %}
+                <div class="invalid-feedback">{{ form.barcode.errors|striptags }}</div>
+              {% else %}
+                <div class="form-text">Optional. If blank, labels use the code.</div>
+              {% endif %}
+            </div>
 
-          <div class="col-md-3 d-flex align-items-center">
-            <div class="form-check mt-3">
-              {{ form.is_active|add_class:"form-check-input"|attr:"id:p_is_active" }}
-              <label class="form-check-label" for="p_is_active">Active</label>
+            <div class="col-md-6">
+              <label class="form-label">Name <span class="text-danger">*</span></label>
+              {{ form.name }}
+              {% if form.name.errors %}
+                <div class="invalid-feedback">{{ form.name.errors|striptags }}</div>
+              {% endif %}
             </div>
           </div>
         </div>
+
+        <!-- Catalog & Pricing -->
+        <div class="mb-3 pb-2 border-bottom">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-tags text-secondary"></i>
+            <div class="fw-semibold">Catalog & Pricing</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Category</label>
+              {{ form.category }}
+              {% if form.category.errors %}
+                <div class="invalid-feedback">{{ form.category.errors|striptags }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Unit Price</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                {{ form.unit_price }}
+              </div>
+              {% if form.unit_price.errors %}
+                <div class="invalid-feedback d-block">{{ form.unit_price.errors|striptags }}</div>
+              {% endif %}
+              <div class="form-text">Selling price (ex/incl tax as per settings).</div>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Cost Price</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                {{ form.cost_price}}
+              </div>
+              {% if form.cost_price.errors %}
+                <div class="invalid-feedback d-block">{{ form.cost_price.errors|striptags }}</div>
+              {% endif %}
+              <div class="form-text">Used for stock valuation & margin.</div>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Tax %</label>
+              <div class="input-group">
+                {{ form.tax_percent}}
+                <span class="input-group-text">%</span>
+              </div>
+              {% if form.tax_percent.errors %}
+                <div class="invalid-feedback d-block">{{ form.tax_percent.errors|striptags }}</div>
+              {% endif %}
+              <div class="form-text">GST/VAT at product level.</div>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Reorder Level</label>
+              {{ form.reorder_level}}
+              {% if form.reorder_level.errors %}
+                <div class="invalid-feedback">{{ form.reorder_level.errors|striptags }}</div>
+              {% else %}
+                <div class="form-text">Dashboard warns at/below this qty.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-gear text-secondary"></i>
+            <div class="fw-semibold">Status</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-3 d-flex align-items-center">
+              <div class="form-check mt-1">
+                {{ form.is_active|add_class:"form-check-input"|attr:"id:p_is_active" }}
+                <label class="form-check-label" for="p_is_active">Active</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <div class="card-footer bg-white d-flex justify-content-between">
-        <a href="{% url 'product_list' %}" class="btn btn-light">Back</a>
-        <button class="btn btn-primary">Save</button>
+
+      <div class="card-footer bg-white d-flex justify-content-between align-items-center" style="position:sticky; bottom:0;">
+        <div class="text-muted small">
+          <i class="bi bi-keyboard me-1"></i>Shortcut: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> to save
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'product_list' %}" class="btn btn-light"><i class="bi bi-x-circle me-1"></i>Cancel</a>
+          <button class="btn btn-primary"><i class="bi bi-save2 me-1"></i>Save</button>
+        </div>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  // Submit on Ctrl/Cmd+S
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      const f = document.getElementById('product-form');
+      if (f) f.submit();
+    }
+  });
+
+  // Optional: auto-focus first invalid field if server sent errors
+  (function(){
+    const invalid = document.querySelector('.is-invalid');
+    if (invalid) invalid.focus();
+  })();
+</script>
 {% endblock %}

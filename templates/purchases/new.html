@@ -19,7 +19,7 @@
         <div class="row g-3">
           <div class="col-md-4">
             <label class="form-label">Supplier</label>
-            {{ form.supplier|add_class:"form-select" }}
+            {{ form.supplier|add_class:"form-select js-enhance-select"|attr:"data-allow-clear:true"|attr:"data-placeholder:Select a supplier" }}
           </div>
           <div class="col-md-3">
             <label class="form-label">Date</label>
