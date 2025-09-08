@@ -1,0 +1,44 @@
+/* Tom Select + Bootstrap polish to match your theme */
+.ts-wrapper.form-select, .ts-wrapper .ts-control {
+    border-radius: .5rem;
+  }
+  
+  .ts-control, .ts-dropdown {
+    border-color: #d3dae3;
+  }
+  
+  .ts-control.focus, .ts-control:focus, .ts-wrapper.focus .ts-control {
+    box-shadow: 0 0 0 .25rem rgba(43,116,199,.15);
+    border-color: #2b74c7;
+  }
+  
+  .ts-dropdown {
+    border-radius: .5rem;
+    overflow: hidden;
+  }
+  
+  .ts-dropdown .active { background:#f1f6ff; color:#1f3b63; }
+  .ts-dropdown .no-results { color:#6b7683; }
+  
+  /* Tokens/chips for multi-selects */
+  .ts-wrapper.multi .ts-control > .item {
+    background: #eef3ff;
+    color: #1f3b63;
+    border: 1px solid rgba(43,116,199,.25);
+    border-radius: .45rem;
+    padding: .15rem .5rem;
+    margin: .15rem .25rem .15rem 0;
+    line-height: 1.35;
+  }
+  
+  .ts-wrapper.multi .ts-control > .item .remove {
+    color: #2b74c7;
+    opacity: .9;
+    margin-left: .35rem;
+  }
+  
+  .ts-wrapper.multi .ts-control > input {
+    margin: .15rem 0;
+    padding: .15rem .25rem;
+  }
+  
