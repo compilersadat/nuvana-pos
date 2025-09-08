@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Products — Stationery POS{% endblock %}
+{% block breadcrumb %}Products{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Products</h3>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{% url 'stock_bulk_adjust' %}" class="btn btn-outline-warning">Bulk Stock (CSV)</a>
+    <a href="{% url 'stock_add' %}" class="btn btn-outline-primary">Add Stock</a>
+    <a href="{% url 'product_barcodes' %}" class="btn btn-outline-dark">Print Barcodes</a>
+    <a href="{% url 'product_export' %}" class="btn btn-outline-secondary">Export CSV</a>
+    <form method="post" action="{% url 'product_import' %}" enctype="multipart/form-data" class="d-flex gap-2">
+      {% csrf_token %}
+      <input type="file" name="file" accept=".csv" class="form-control" style="width:220px">
+      <button class="btn btn-primary">Import CSV</button>
+    </form>
+    <a href="{% url 'product_create' %}" class="btn btn-success">New Product</a>
+  </div>
+</div>
+
+<form class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Search by name/code/barcode">
+    {% if page_size %}<input type="hidden" name="page_size" value="{{ page_size }}">{% endif %}
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Search</button>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-striped table-hover table-sticky align-middle">
+    <thead>
+      <tr>
+        <th>Code</th><th>Barcode</th><th>Name</th><th>Category</th>
+        <th class="text-end">Unit Price</th><th class="text-end">Cost</th>
+        <th class="text-end">Tax %</th><th class="text-end">Stock</th><th></th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in page_obj %}
+      <tr>
+        <td>{{ p.code }}</td>
+        <td>{{ p.barcode }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category }}</td>
+        <td class="text-end">{{ p.unit_price }}</td>
+        <td class="text-end">{{ p.cost_price }}</td>
+        <td class="text-end">{{ p.tax_percent }}</td>
+        <td class="text-end">{{ p.stock }}</td>
+        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'product_add_stock' p.id %}">Add Stock</a></td>
+        <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'product_update' p.id %}">Edit</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="10" class="text-center text-muted">No products</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "partials/pagination.html" with page_obj=page_obj base_qs=base_qs page_size=page_size %}
+{% endblock %}

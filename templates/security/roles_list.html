@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Roles & Permissions — Security{% endblock %}
+{% block breadcrumb %}Security / Roles{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="m-0">Roles</h3>
+  <a href="{% url 'security_role_new' %}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>New Role</a>
+</div>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+  <thead><tr><th>Name</th><th class="text-end">Users</th><th style="width:160px"></th></tr></thead>
+  <tbody>
+    {% for r in roles %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td class="text-end">{{ r.users_count }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'security_role_edit' r.id %}">Edit</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="text-center text-muted">No roles</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

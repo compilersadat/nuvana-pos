@@ -1,0 +1,73 @@
+{% comment %}Reusable Bootstrap pagination + page-size chooser (no custom filters){% endcomment %}
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+  <div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="small text-muted">
+      Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <label class="small m-0">Rows / page</label>
+      <select id="pager_page_size" class="form-select form-select-sm" style="width:auto"
+              data-baseqs="{{ base_qs }}">
+        {# Hardcode common sizes; no split filter needed #}
+        <option value="10"  {% if page_size == 10  %}selected{% endif %}>10</option>
+        <option value="25"  {% if page_size == 25  %}selected{% endif %}>25</option>
+        <option value="50"  {% if page_size == 50  %}selected{% endif %}>50</option>
+        <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+      </select>
+    </div>
+  </div>
+
+  <nav aria-label="Pagination" class="mt-2">
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+        <a class="page-link"
+           href="?page=1{% if base_qs %}&{{ base_qs }}{% endif %}{% if page_size %}&page_size={{ page_size }}{% endif %}"
+           aria-label="First">«</a>
+      </li>
+
+      <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+        <a class="page-link"
+           href="?page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}{% if base_qs %}&{{ base_qs }}{% endif %}{% if page_size %}&page_size={{ page_size }}{% endif %}"
+           aria-label="Previous">‹</a>
+      </li>
+
+      {# Windowed page numbers around current page #}
+      {% for i in page_obj.paginator.page_range %}
+        {% if i >= page_obj.number|add:"-2" and i <= page_obj.number|add:"2" %}
+          <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+            <a class="page-link"
+               href="?page={{ i }}{% if base_qs %}&{{ base_qs }}{% endif %}{% if page_size %}&page_size={{ page_size }}{% endif %}">{{ i }}</a>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+        <a class="page-link"
+           href="?page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ page_obj.paginator.num_pages }}{% endif %}{% if base_qs %}&{{ base_qs }}{% endif %}{% if page_size %}&page_size={{ page_size }}{% endif %}"
+           aria-label="Next">›</a>
+      </li>
+
+      <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+        <a class="page-link"
+           href="?page={{ page_obj.paginator.num_pages }}{% if base_qs %}&{{ base_qs }}{% endif %}{% if page_size %}&page_size={{ page_size }}{% endif %}"
+           aria-label="Last">»</a>
+      </li>
+    </ul>
+  </nav>
+
+  <style>
+    .table-sticky thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+  </style>
+  <script>
+    (function(){
+      const sel = document.getElementById('pager_page_size');
+      if (!sel) return;
+      sel.addEventListener('change', function(){
+        const v = this.value || '25';
+        const base = this.dataset.baseqs || '';
+        const qs = base ? ('&' + base) : '';
+        window.location.search = '?page=1' + qs + '&page_size=' + encodeURIComponent(v);
+      });
+    })();
+  </script>
+{% endif %}

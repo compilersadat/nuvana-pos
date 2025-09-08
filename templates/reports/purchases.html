@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Purchase Report</h3>
+<form class="row g-2 mb-3">
+  <div class="col-auto"><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+  <div class="col-auto"><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filter</button></div>
+  <div class="col-auto"><a class="btn btn-primary" href="?{% if start %}start={{ start }}&{% endif %}{% if end %}end={{ end }}&{% endif %}format=pdf">Download PDF</a></div>
+</form>
+<div class="text-end mb-2"><b>Total: ₹ {{ total }}</b></div>
+<table class="table table-sm table-striped">
+  <thead><tr><th>Date</th><th>PO</th><th>Supplier</th><th class="text-end">Total</th><th>Notes</th></tr></thead>
+  <tbody>
+    {% for p in purchases %}
+    <tr>
+      <td>{{ p.date }}</td>
+      <td>PO-{{ p.id }}</td>
+      <td>{{ p.supplier }}</td>
+      <td class="text-end">{{ p.total }}</td>
+      <td>{{ p.notes|default:"" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-muted text-center">No purchases</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

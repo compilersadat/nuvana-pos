@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Bulk CSV Stock Adjustments</h3>
+<p class="text-muted">Upload a CSV to create stock adjustments (positive to add, negative to remove). Reason will be recorded as <code>adjustment</code>.</p>
+
+<div class="mb-3">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'stock_bulk_template' %}">Download CSV template</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card card-body" style="max-width:640px">
+  {% csrf_token %}
+  <div class="mb-3">
+    <label class="form-label">CSV file</label>
+    <input type="file" name="file" accept=".csv" class="form-control" required>
+  </div>
+  <div class="mb-2">
+    <strong>Columns:</strong> <code>code</code> (or <code>barcode</code>), <code>change</code>, <code>note</code> (optional)
+  </div>
+  <pre class="bg-light p-2 border rounded small">code,change,note
+PEN-001,10,new shipment
+PEN-002,-2,damaged</pre>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">Upload &amp; Apply</button>
+    <a class="btn btn-outline-secondary" href="{% url 'product_list' %}">Back to products</a>
+  </div>
+</form>
+
+{% if report and (report.success or report.errors) %}
+<hr>
+<h5>Result</h5>
+<p><strong>Applied:</strong> {{ report.success }}</p>
+{% if report.errors %}
+  <div class="alert alert-warning">
+    <div class="fw-bold mb-1">Issues ({{ report.errors|length }})</div>
+    <ul class="mb-0">
+      {% for e in report.errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% endif %}
+{% endblock %}

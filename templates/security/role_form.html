@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}{{ title }} — Security{% endblock %}
+{% block breadcrumb %}Security / Roles / {{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <form method="post" class="card shadow-sm">
+      {% csrf_token %}
+      <div class="card-header bg-white"><h5 class="m-0">{{ title }}</h5></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Role name</label>
+            {{ form.name|add_class:"form-control" }}
+          </div>
+          <div class="col-md-12">
+            <label class="form-label">Permissions (posapp)</label>
+            {{ perm_form.permissions|add_class:"form-select" }}
+            <div class="form-text">Hold Ctrl (Cmd on Mac) to select multiple permissions.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-between">
+        <a href="{% url 'security_roles' %}" class="btn btn-light">Back</a>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

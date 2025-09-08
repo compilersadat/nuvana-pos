@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}{{ title }} — Security{% endblock %}
+{% block breadcrumb %}Security / Users / {{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <form method="post" class="card shadow-sm">
+      {% csrf_token %}
+      <div class="card-header bg-white"><h5 class="m-0">{{ title }}</h5></div>
+      <div class="card-body">
+        <div class="row g-3">
+          {% if form.username %}
+          <div class="col-md-6">
+            <label class="form-label">Username</label>
+            {{ form.username|add_class:"form-control" }}
+          </div>
+          {% endif %}
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            {{ form.email|add_class:"form-control" }}
+          </div>
+          <div class="col-md-3">
+            <div class="form-check mt-4">
+              {{ form.is_active|add_class:"form-check-input" }}
+              <label class="form-check-label">Active</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-check mt-4">
+              {{ form.is_staff|add_class:"form-check-input" }}
+              <label class="form-check-label">Staff</label>
+            </div>
+          </div>
+          {% if form.password1 %}
+          <div class="col-md-4">
+            <label class="form-label">Password</label>
+            {{ form.password1|add_class:"form-control" }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Confirm Password</label>
+            {{ form.password2|add_class:"form-control" }}
+          </div>
+          {% else %}
+          <div class="col-md-4">
+            <label class="form-label">New Password (optional)</label>
+            {{ form.password1|add_class:"form-control" }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Confirm New Password</label>
+            {{ form.password2|add_class:"form-control" }}
+          </div>
+          {% endif %}
+          <div class="col-md-12">
+            <label class="form-label">Roles</label>
+            {{ form.groups|add_class:"form-select" }}
+            <div class="form-text">Hold Ctrl (Cmd on Mac) to select multiple.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-between">
+        <a href="{% url 'security_users' %}" class="btn btn-light">Back</a>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

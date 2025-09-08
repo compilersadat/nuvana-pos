@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}{{ title }} — Stationery POS{% endblock %}
+{% block breadcrumb %}<a href="{% url 'product_list' %}" class="text-decoration-none">Products</a> / {{ title }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10">
+    <form method="post" class="card shadow-sm">
+      {% csrf_token %}
+      <div class="card-header bg-white">
+        <h5 class="m-0">{{ title }}</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Code</label>
+            {{ form.code|add_class:"form-control"|attr:"autofocus:autofocus" }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Barcode</label>
+            {{ form.barcode|add_class:"form-control" }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Name</label>
+            {{ form.name|add_class:"form-control" }}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Category</label>
+            {{ form.category|add_class:"form-select" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Unit Price</label>
+            {{ form.unit_price|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Cost Price</label>
+            {{ form.cost_price|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Tax %</label>
+            {{ form.tax_percent|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Reorder Level</label>
+            {{ form.reorder_level|add_class:"form-control"|attr:"min:0" }}
+          </div>
+
+          <div class="col-md-3 d-flex align-items-center">
+            <div class="form-check mt-3">
+              {{ form.is_active|add_class:"form-check-input"|attr:"id:p_is_active" }}
+              <label class="form-check-label" for="p_is_active">Active</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-between">
+        <a href="{% url 'product_list' %}" class="btn btn-light">Back</a>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

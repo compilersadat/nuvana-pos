@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Stock CSV — Stationery POS{% endblock %}
+{% block breadcrumb %}<a href="{% url 'product_list' %}" class="text-decoration-none">Products</a> / Bulk Stock (CSV){% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <h5 class="m-0"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Bulk CSV Stock Adjustments</h5>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="?sample=1"><i class="bi bi-download me-1"></i>Sample CSV</a>
+          <a class="btn btn-sm btn-light" href="{% url 'product_list' %}"><i class="bi bi-arrow-left me-1"></i>Back</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Upload a CSV to add/remove stock or set stock to a target quantity.</p>
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+          {% csrf_token %}
+          <div class="col-12">
+            <label class="form-label">CSV File</label>
+            <input type="file" name="file" accept=".csv" class="form-control" required>
+          </div>
+          <div class="col-12">
+            <p class="small text-muted mb-1">Headers (case-insensitive): <code>code</code> or <code>barcode</code>; one of <code>delta</code> or <code>new_stock</code>/<code>set_to</code>/<code>target</code>; optional <code>note</code>.</p>
+            <ul class="small text-muted">
+              <li><b>delta</b>: signed integer to add/remove units (e.g., <code>+10</code>, <code>-3</code>).</li>
+              <li><b>new_stock</b>/<b>set_to</b>/<b>target</b>: absolute stock level; we compute the difference.</li>
+            </ul>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-primary"><i class="bi bi-upload me-1"></i>Process CSV</button>
+            <a class="btn btn-light" href="{% url 'product_list' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if results or not_found or errors %}
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-white">
+        <h6 class="m-0">Results</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr><th>Code</th><th>Barcode</th><th class="text-end">Old</th><th class="text-end">Change</th><th class="text-end">New</th><th>Note</th></tr></thead>
+            <tbody>
+              {% for r in results %}
+              <tr>
+                <td>{{ r.code }}</td>
+                <td>{{ r.barcode }}</td>
+                <td class="text-end">{{ r.old }}</td>
+                <td class="text-end">{{ r.change }}</td>
+                <td class="text-end">{{ r.new }}</td>
+                <td>{{ r.note }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-muted">No changes</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-warning mt-3"><b>Errors</b>
+      <ul class="mb-0">
+        {% for e in errors %}
+        <li>{{ e.code }} / {{ e.barcode }} — {{ e.error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if not_found %}
+    <div class="alert alert-secondary mt-3"><b>Not Found</b>
+      <ul class="mb-0">
+        {% for nf in not_found %}
+        <li>{{ nf.code }} / {{ nf.barcode }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header bg-white">
+        <h6 class="m-0">Examples</h6>
+      </div>
+      <div class="card-body">
+        <pre class="bg-light p-2 border rounded small">code,barcode,delta,new_stock,note
+PEN001,8901234567890,10,,Initial load
+NOTE001,,,-5,Damage write-off</pre>
+        <div class="small text-muted mt-2">Tip: To set an absolute stock, use <code>new_stock</code> (or <code>set_to</code>/<code>target</code>). We compute the adjustment automatically.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

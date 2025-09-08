@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Stock Report — Stationery POS{% endblock %}
+{% block breadcrumb %}Reports / Stock{% endblock %}
+
+{% block content %}
+<h3>Stock Report</h3>
+
+<div class="mb-3 d-flex gap-2">
+  <a class="btn btn-primary" href="?format=pdf{% if base_qs %}&{{ base_qs }}{% endif %}">Download PDF</a>
+</div>
+
+<div class="text-end mb-2">
+  <b>Total valuation: ₹ {{ total_valuation|floatformat:2 }}</b>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm table-striped table-sticky align-middle">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th class="text-end">Stock</th>
+        <th class="text-end">Cost</th>
+        <th class="text-end">Valuation</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in page_obj %}
+      <tr>
+        <td>{{ p.code }}</td>
+        <td>{{ p.name }}</td>
+        <td class="text-end">{{ p.stock_sum|default:0 }}</td>
+        <td class="text-end">₹ {{ p.cost_price|floatformat:2 }}</td>
+        <td class="text-end">₹ {{ p.valuation|default:0|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-muted text-center">No products</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "partials/pagination.html" with page_obj=page_obj base_qs=base_qs page_size=page_size %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+{% block title %}Add Stock — Stationery POS{% endblock %}
+{% block breadcrumb %}<a href="{% url 'product_list' %}" class="text-decoration-none">Products</a> / Add Stock{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <h5 class="m-0"><i class="bi bi-plus-circle me-2"></i>Add Stock</h5>
+        <a href="{% url 'product_list' %}" class="btn btn-sm btn-light"><i class="bi bi-arrow-left me-1"></i>Back</a>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <div class="card-body">
+          <p class="text-muted small mb-4">Quickly increase on‑hand quantity. For vendor costing, use a <a href="/purchases/new/">Purchase</a>.</p>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Product</label>
+              {{ form.product|add_class:"form-select" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Quantity to add</label>
+              {{ form.qty|add_class:"form-control" }}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Note (optional)</label>
+              {{ form.note|add_class:"form-control" }}
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-end gap-2">
+          <a class="btn btn-light" href="{% url 'product_list' %}">Cancel</a>
+          <button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Add to Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

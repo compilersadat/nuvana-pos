@@ -1,0 +1,96 @@
+:root{
+  /* pulled from your logo */
+  --brand-1:#020559;   /* deep navy (for gradient base) */
+  --brand-2:#02066F;   /* logo blue (primary) */
+  --brand-3:#5B5DA1;   /* soft accent for hovers/badges */
+
+  /* neutrals tuned to the brand */
+  --bg-soft:#E6E6F1;   /* app background tint */
+  --text-ink:#101428;  /* main text */
+  --muted:#8C8DBA;     /* subtle headings / table headers */
+  --card-border:#E6E8EF;
+}
+
+html, body { height: 100%; }
+.app-body{ background: var(--bg-soft); color: var(--text-ink); }
+
+.app-shell{ max-width: 1200px; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
+
+/* NAVBAR */
+.app-navbar{
+  --bs-navbar-color: rgba(255,255,255,.90);
+  --bs-navbar-hover-color: #fff;
+  background: linear-gradient(180deg, var(--brand-2) 0%, var(--brand-1) 100%);
+}
+.app-navbar .navbar-brand{ color:#fff; letter-spacing:.2px; }
+.app-navbar .navbar-brand img{ height: 28px; display:block; }
+.app-navbar .navbar-toggler{ border-color: rgba(255,255,255,.35); }
+.app-navbar .navbar-toggler-icon{ filter: invert(1); }
+.app-navbar .nav-link{ color: var(--bs-navbar-color); }
+.app-navbar .nav-link:hover, .app-navbar .nav-link:focus{ color: var(--bs-navbar-hover-color); }
+.navbar .dropdown-menu{ border-radius: .5rem; }
+
+/* SUBBAR */
+.app-subbar{ border-bottom: 1px solid #e8ecf2; background: #fff; }
+
+/* CARDS & TABLES */
+.card{ border: 1px solid var(--card-border); border-radius: .75rem; }
+.card.shadow-sm{ box-shadow: 0 4px 14px rgba(20, 38, 58, 0.06); }
+
+.table thead th{
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--card-border);
+  background: #F8F9FC;
+}
+.table tbody tr:hover{ background: #F3F6FF; }
+
+/* FORMS */
+.form-control, .form-select{
+  border-radius: .5rem;
+  border-color: #d3dae3;
+}
+.form-control:focus, .form-select:focus{
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 .25rem rgba(2, 6, 111, .15);
+}
+label{ font-weight: 500; color: #334155; }
+
+/* BUTTONS (primary → logo blue) */
+.btn{ border-radius: .5rem; }
+.btn-primary{
+  --bs-btn-bg: var(--brand-2);
+  --bs-btn-border-color: var(--brand-2);
+  --bs-btn-hover-bg: #08127F;
+  --bs-btn-hover-border-color: #08127F;
+  --bs-btn-active-bg: #08127F;
+  --bs-btn-active-border-color: #08127F;
+}
+.btn-outline-primary{
+  --bs-btn-color: var(--brand-2);
+  --bs-btn-border-color: var(--brand-2);
+  --bs-btn-hover-bg: var(--brand-2);
+  --bs-btn-hover-border-color: var(--brand-2);
+  --bs-btn-active-bg: var(--brand-2);
+  --bs-btn-active-border-color: var(--brand-2);
+  --bs-btn-hover-color:#fff;
+}
+.btn-outline-light{
+  --bs-btn-hover-bg: rgba(255,255,255,.15);
+  --bs-btn-border-color: rgba(255,255,255,.6);
+}
+
+/* BADGES, LINKS, SWITCHES */
+.badge.bg-primary{ background-color: var(--brand-3) !important; }
+a, .link-primary{ color: var(--brand-2); }
+a:hover{ color: #08127F; }
+
+.form-check-input:checked{
+  background-color: var(--brand-2);
+  border-color: var(--brand-2);
+}
+
+.alert{ border-radius: .75rem; }
+.text-light-50{ color: rgba(255,255,255,.75) !important; }

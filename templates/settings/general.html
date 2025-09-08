@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}POS Settings{% endblock %}
+{% block breadcrumb %}Settings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <form method="post" class="card shadow-sm">
+      {% csrf_token %}
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0">POS Settings</h5>
+        <small class="text-muted">Billing, credit policy, SMS & calls</small>
+      </div>
+      <div class="card-body">
+        <h6 class="text-muted">Organisation & Bill</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4"><label class="form-label">Name</label>{{ form.org_name|add_class:"form-control" }}</div>
+          <div class="col-md-4"><label class="form-label">Phone</label>{{ form.org_phone|add_class:"form-control" }}</div>
+          <div class="col-md-4"><label class="form-label">Email</label>{{ form.org_email|add_class:"form-control" }}</div>
+          <div class="col-md-12"><label class="form-label">Address</label>{{ form.org_address|add_class:"form-control" }}</div>
+          <div class="col-md-4"><label class="form-label">Bill Title</label>{{ form.bill_title|add_class:"form-control" }}</div>
+          <div class="col-md-6"><label class="form-label">Bill Footer</label>{{ form.bill_footer|add_class:"form-control" }}</div>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check">
+              {{ form.bill_tax_inclusive|add_class:"form-check-input" }}
+              <label class="form-check-label">Tax Inclusive</label>
+            </div>
+          </div>
+        </div>
+
+        <h6 class="text-muted">Credit Policy</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-md-3">
+            <div class="form-check mt-2">
+              {{ form.credit_enforce|add_class:"form-check-input" }}
+              <label class="form-check-label">Enforce Limit</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Alert at % of limit</label>
+            {{ form.credit_alert_threshold|add_class:"form-control" }}
+          </div>
+        </div>
+
+        <h6 class="text-muted">SMS Gateway</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-md-2">
+            <div class="form-check mt-2">
+              {{ form.sms_enabled|add_class:"form-check-input" }}
+              <label class="form-check-label">Enable SMS</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Provider</label>
+            {{ form.sms_provider|add_class:"form-select" }}
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">API Key</label>
+            {{ form.sms_api_key|add_class:"form-control" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Sender ID</label>
+            {{ form.sms_sender|add_class:"form-control" }}
+          </div>
+        </div>
+
+        <h6 class="text-muted">Call Gateway</h6>
+        <div class="row g-3">
+          <div class="col-md-2">
+            <div class="form-check mt-2">
+              {{ form.call_enabled|add_class:"form-check-input" }}
+              <label class="form-check-label">Enable Calls</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Provider</label>
+            {{ form.call_provider|add_class:"form-select" }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">SID</label>
+            {{ form.call_sid|add_class:"form-control" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Token</label>
+            {{ form.call_token|add_class:"form-control" }}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">From</label>
+            {{ form.call_from|add_class:"form-control" }}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-between">
+        <a href="{% url 'dashboard' %}" class="btn btn-light">Back</a>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

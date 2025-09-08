@@ -1,0 +1,69 @@
+# ---- Python / Django ----
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Django sqlite (dev)
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# User uploads (keep empty folder with .gitkeep if needed)
+media/
+media/*
+
+# Collected static (runtime output), but keep your offline vendor sources
+staticfiles/
+staticfiles/*
+!static/vendor/**
+
+# Keep your local static sources tracked
+# (We do NOT ignore static/vendor, static/app.css, static/brand, etc.)
+# If you ever build assets, ignore their build cache here:
+# static/.cache/
+
+# Logs & temp
+*.log
+logs/
+tmp/
+*.tmp
+
+# ---- Packaging / Build Artifacts ----
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Inno Setup (optional)
+installer/Output/
+
+# Node (if you ever add tooling)
+node_modules/
+
+# ---- Tests / Coverage ----
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# ---- Type checkers ----
+.mypy_cache/
+.pyre/
+.pytype/
+
+# ---- IDE / OS junk ----
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db

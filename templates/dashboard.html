@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — Stationery POS{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- KPI cards -->
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Today's Sales</h6>
+        <h2 class="m-0">₹ {{ total_sales_today|floatformat:2 }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Products</h6>
+        <h2 class="m-0">{{ total_products }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Low Stock (≤ Reorder)</h6>
+        <h2 class="m-0">{{ low_stock }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Links (classic professional launcher) -->
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between">
+    <h5 class="m-0">Quick Links</h5>
+    <small class="text-muted">Common actions at a glance</small>
+  </div>
+  <div class="card-body">
+    <div class="row row-cols-2 row-cols-md-4 g-3">
+      <div class="col">
+        <a href="{% url 'pos_sale_create' %}" class="btn btn-outline-primary w-100 py-3">
+          <i class="bi bi-cash-coin me-2"></i> POS (New Sale)
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-box-seam me-2"></i> Products
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'purchase_create' %}" class="btn btn-outline-success w-100 py-3">
+          <i class="bi bi-truck me-2"></i> New Purchase
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'sales_list' %}" class="btn btn-outline-dark w-100 py-3">
+          <i class="bi bi-receipt me-2"></i> Sales List
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'product_barcodes' %}" class="btn btn-outline-dark w-100 py-3">
+          <i class="bi bi-upc-scan me-2"></i> Print Barcodes
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'stock_add' %}" class="btn btn-outline-primary w-100 py-3">
+          <i class="bi bi-plus-square-dotted me-2"></i> Add Stock
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-people me-2"></i> Suppliers
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-person-badge me-2"></i> Customers
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Low stock details -->
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="m-0">Low Stock Details</h5>
+    <small class="text-muted">Up to 15 products at/below reorder</small>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width:90px">Code</th>
+            <th>Product</th>
+            <th class="text-end" style="width:120px">On Hand</th>
+            <th class="text-end" style="width:140px">Reorder ≤</th>
+            <th style="width:120px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in low_stock_details %}
+          <tr>
+            <td>{{ p.code }}</td>
+            <td>{{ p.name }}</td>
+            <td class="text-end">{{ p.stock_sum|default:0 }}</td>
+            <td class="text-end">{{ p.reorder_level }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'product_add_stock' p.id %}">Add Stock</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted text-center">No products at/below reorder</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Two-up: Top selling vs Top customers -->
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="m-0">Top Selling (Last 30 days)</h5>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'sales_list' %}">View Sales</a>
+        </div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width:90px">Code</th>
+                <th>Product</th>
+                <th class="text-end" style="width:120px">Qty</th>
+                <th class="text-end" style="width:140px">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in top_products %}
+              <tr>
+                <td>{{ r.product__code }}</td>
+                <td>{{ r.product__name }}</td>
+                <td class="text-end">{{ r.total_qty }}</td>
+                <td class="text-end">₹ {{ r.revenue|floatformat:2 }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted text-center">No sales in last 30 days</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="m-0">Top Purchasing Customers (Last 30 days)</h5>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'sales_list' %}">View Sales</a>
+        </div>
+        <div class="table-responsive mt-3">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th class="text-end" style="width:110px">Invoices</th>
+                <th class="text-end" style="width:140px">Total</th>
+                <th style="width:240px">Top Product (Qty)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in top_customers %}
+              <tr>
+                <td>{{ c.customer__name|default:"Walk-in" }}</td>
+                <td class="text-end">{{ c.invoices }}</td>
+                <td class="text-end">₹ {{ c.total|floatformat:2 }}</td>
+                <td>
+                  {% if c.top_product %}
+                    <span class="text-nowrap">{{ c.top_product_code }}</span>
+                    — {{ c.top_product }}
+                    <span class="text-muted">({{ c.top_product_qty|default:0 }})</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted text-center">No sales in last 30 days</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Instructions -->
+<div class="card shadow-sm mt-3">
+  <div class="card-header bg-white">
+    <h6 class="m-0">Instructions</h6>
+  </div>
+  <div class="card-body">
+    <ol class="mb-0">
+      <li>Create or import <b>Products</b> and set <i>Unit Price, Cost, Tax%</i>.</li>
+      <li>Load inventory via <b>Purchase</b> (recommended) or quick <b>Add Stock</b>.</li>
+      <li>Use <b>POS</b> to sell/return; scan barcode or search by code/name.</li>
+      <li>Print <b>Barcode labels</b> (A4 grids; Code128 / EAN-13).</li>
+      <li>Review <b>Sales</b>, <b>Stock</b> and <b>Purchase</b> reports; download PDFs.</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

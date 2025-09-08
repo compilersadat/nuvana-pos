@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}New Purchase — Stationery POS{% endblock %}
+{% block breadcrumb %}Purchases / New{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+    <form method="post" class="card shadow-sm">
+      {% csrf_token %}
+
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0">New Purchase</h5>
+        <!-- Use a history back so no Django URL name is required -->
+        <a href="javascript:history.back()" class="btn btn-sm btn-light">Back</a>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Supplier</label>
+            {{ form.supplier|add_class:"form-select" }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Date</label>
+            {{ form.date|add_class:"form-control" }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            {{ form.notes|add_class:"form-control"|attr:"rows:2" }}
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="m-0">Items</h6>
+          <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow('purchase')">
+            <i class="bi bi-plus-circle me-1"></i>Add Item
+          </button>
+        </div>
+
+        <div class="table-responsive mt-2">
+          <table class="table table-sm align-middle" id="items-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style="width:120px">Qty</th>
+                <th style="width:150px">Cost</th>
+                <th style="width:150px">Line Total</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <input type="hidden" name="items_json" id="items_json">
+
+        <div class="text-end mt-3">
+          <div class="fw-semibold">Total: <span id="grand_total">0.00</span></div>
+        </div>
+      </div>
+
+      <div class="card-footer bg-white">
+        <button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Save Purchase</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<datalist id="products">
+  {% for p in products %}
+    <option
+      data-id="{{ p.id }}"
+      data-price="{{ p.cost_price }}"
+      data-barcode="{{ p.barcode }}"
+      value="{{ p.code }} - {{ p.name }}{% if p.barcode %} ({{ p.barcode }}){% endif %}">
+    </option>
+  {% endfor %}
+</datalist>
+
+<script>
+  // Treat this page as a purchase screen
+  window.ITEMS_KIND = 'purchase';
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!document.querySelector('#items-table tbody tr')) {
+      addItemRow('purchase');
+    }
+  });
+</script>
+{% endblock %}
