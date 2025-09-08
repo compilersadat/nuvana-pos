@@ -1,42 +1,79 @@
 {% extends 'base.html' %}
 {% load widget_tweaks %}
+
 {% block title %}Point of Sale — Stationery POS{% endblock %}
 {% block breadcrumb %}POS{% endblock %}
 
 {% block content %}
+<style>
+  /* ---- Scoped POS polish ---- */
+  .pos-toolbar { background:#fff; border-bottom:1px solid var(--card-border,#e5e7eb); }
+  .pos-toolbar .title { font-weight:600; letter-spacing:.2px; }
+  .pos-badge { background:#eef3ff; color:#2b74c7; border-radius:.5rem; padding:.25rem .5rem; font-size:.8rem; }
+  .quick-hint { color:#6b7683; }
+  .table-sticky thead th { position:sticky; top:0; z-index:2; background:#fbfcfd; }
+  .table-compact td, .table-compact th { padding:.55rem .75rem; }
+  .product-col { min-width: 340px; }
+  .qty-col { width:120px; }
+  .price-col, .line-col { width:150px; }
+  .remove-col { width:56px; }
+  .pos-summary .value { font-weight:700; font-size:1.25rem; }
+  .pos-summary small { color:#6b7683; }
+  .pos-sticky { position:sticky; top:1rem; }
+  .kbd { background:#f3f4f6; border:1px solid #e5e7eb; border-bottom-width:2px; border-radius:.35rem; padding:.05rem .35rem; font-size:.8rem; }
+  .alert-inline { border-radius:.5rem; }
+  .table-danger td { background: #fff5f5 !important; }
+</style>
+
 <form method="post" id="pos-form" novalidate>
   {% csrf_token %}
+
   <div class="row g-3">
+    <!-- ===== Left: Items ===== -->
     <div class="col-12 col-lg-8">
       <div class="card shadow-sm">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center gap-2">
-            <h3 class="mb-0">
-              {% if editing %}Edit {{ form.instance.is_return|yesno:"Credit Note,Invoice" }} #{{ form.instance.is_return|yesno:"CRN,INV" }}-{{ form.instance.id }}
-              {% else %}Point of Sale{% endif %}
-            </h3>
-            <span class="badge bg-secondary">Scan or search</span>
+        <div class="card-header pos-toolbar d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-3">
+            <div class="title h4 mb-0">
+              {% if editing %}
+                Edit {{ form.instance.is_return|yesno:"Credit Note,Invoice" }}&nbsp;#{{ form.instance.is_return|yesno:"CRN,INV" }}-{{ form.instance.id }}
+              {% else %}
+                Point of Sale
+              {% endif %}
+            </div>
+            <span class="pos-badge d-none d-md-inline-flex align-items-center gap-2">
+              <i class="bi bi-upc-scan"></i> Scan or search
+            </span>
           </div>
           <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow" title="Add item (Alt + +)">
               <i class="bi bi-plus-circle me-1"></i>Add Item
             </button>
-            <button type="button" class="btn btn-sm btn-outline-danger" id="btnClear">
+            <button type="button" class="btn btn-sm btn-outline-danger" id="btnClear" title="Clear all rows">
               <i class="bi bi-trash me-1"></i>Clear
             </button>
           </div>
         </div>
+
+        <!-- keep a SINGLE items_json field (used by pos.js to persist on validation error) -->
         <input type="hidden" name="items_json" id="items_json" value="{{ items_json|default:''|escape }}">
 
-
         <div class="card-body">
+          <!-- Quick Scan -->
           <div class="mb-3">
             <label class="form-label" for="quick_scan">Quick scan / search</label>
-            <input id="quick_scan" class="form-control" placeholder="Scan barcode or type code/name, then Enter"
-                   list="products" autocomplete="off" inputmode="search">
-            <div class="form-text">Tip: Press <kbd>F2</kbd> to focus here. Press <kbd>Enter</kbd> to add the item.</div>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input id="quick_scan" class="form-control" placeholder="Scan barcode or type code/name, then press Enter"
+                     list="products" autocomplete="off" inputmode="search">
+            </div>
+            <div class="form-text quick-hint">
+              Tips: press <span class="kbd">F2</span> to focus; <span class="kbd">Enter</span> to add;
+              use product <em>code</em> or <em>barcode</em> for fastest match.
+            </div>
           </div>
 
+          <!-- Header inputs -->
           <div class="row g-3 mb-2">
             <div class="col-md-6">
               <label class="form-label">Customer</label>
@@ -54,51 +91,62 @@
             </div>
           </div>
 
+          <!-- Items table -->
           <div class="table-responsive">
-            <table class="table table-sm align-middle" id="items-table">
-              <thead class="sticky-top bg-white">
+            <table class="table table-sm table-sticky table-compact align-middle" id="items-table">
+              <thead>
                 <tr>
-                  <th>Product</th>
-                  <th style="width:120px">Qty</th>
-                  <th style="width:150px">Price</th>
-                  <th style="width:150px">Line Total</th>
-                  <th style="width:50px"></th>
+                  <th class="product-col">Product</th>
+                  <th class="qty-col text-end">Qty</th>
+                  <th class="price-col text-end">Price</th>
+                  <th class="line-col text-end">Line Total</th>
+                  <th class="remove-col"></th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody>
+                {# rows are injected by pos.js (addItemRow / restoreItemsFromJSON) #}
+              </tbody>
             </table>
           </div>
 
-       
-          <div id="pos_error" class="alert alert-warning mt-2 d-none"></div>
+          <!-- Inline errors (stock guard, empty items, etc) -->
+          <div id="pos_error" class="alert alert-warning alert-inline mt-3 d-none"></div>
         </div>
       </div>
     </div>
 
+    <!-- ===== Right: Summary ===== -->
     <div class="col-12 col-lg-4">
-      <div class="card shadow-sm" style="position:sticky; top:1rem;">
+      <div class="card shadow-sm pos-sticky">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
           <h6 class="m-0">Totals</h6>
-          <small class="text-muted">auto tax per product</small>
+          <small class="text-muted">Per-product tax auto</small>
         </div>
-        <div class="card-body">
-          <div class="d-flex justify-content-between mb-1"><span>Subtotal</span><span id="subtotal">0.00</span></div>
-          <div class="mb-2">
+        <div class="card-body pos-summary">
+          <div class="d-flex justify-content-between">
+            <span>Subtotal</span><span id="subtotal">0.00</span>
+          </div>
+
+          <div class="my-2">
             <div class="d-flex justify-content-between align-items-center">
               <label class="m-0" for="id_discount">Discount</label>
               <div style="width:160px">
                 {{ form.discount|add_class:"form-control form-control-sm"|attr:"step:0.01"|attr:"min:0" }}
               </div>
             </div>
-            <div class="text-end small text-muted"><span id="discount">0.00</span> applied</div>
+            <div class="text-end small"><span id="discount">0.00</span> <span class="text-muted">applied</span></div>
           </div>
-          <div class="d-flex justify-content-between mb-2"><span>Tax</span><span id="tax">0.00</span></div>
+
+          <div class="d-flex justify-content-between mb-2">
+            <span>Tax</span><span id="tax">0.00</span>
+          </div>
+
           <hr class="my-2">
           <div class="d-flex justify-content-between align-items-center">
             <div class="fw-semibold">Grand Total</div>
-            <div class="fw-bold fs-5"><span id="grand_total">0.00</span></div>
+            <div class="value"><span id="grand_total">0.00</span></div>
           </div>
-          <div class="form-text text-end">Totals turn negative for returns.</div>
+          <div class="form-text text-end">Returns show as negative.</div>
 
           <hr class="my-3">
 
@@ -106,21 +154,26 @@
             <label class="form-label" for="id_payment_method">Payment method</label>
             {{ form.payment_method|add_class:"form-select" }}
           </div>
-          <div class="mb-2">
+          <div class="mb-3">
             <label class="form-label" for="id_paid_amount">Paid amount</label>
             {{ form.paid_amount|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
           </div>
-          <button class="btn btn-success w-100 mt-2" id="btnComplete">
+
+          <button class="btn btn-success w-100" id="btnComplete">
             <i class="bi bi-check2-circle me-1"></i>
             {% if editing %}Update{% else %}Complete{% endif %} {{ form.is_return.value|yesno:"Return,Sale" }}
           </button>
-          <div class="text-center small text-muted mt-2">Shortcut: <kbd>F9</kbd> or <kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+
+          <div class="text-center small text-muted mt-2">
+            Shortcuts: <span class="kbd">F9</span> or <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </form>
 
+<!-- Product catalog for <datalist> -->
 <datalist id="products">
   {% for p in products %}
     <option
@@ -135,11 +188,10 @@
   {% endfor %}
 </datalist>
 
-{# Prefill item rows when editing an existing sale #}
+{# Prefill rows when editing an existing sale — keeps your current JS hooks #}
 {% if editing and prefill_items %}
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  console.log("item");
   try {
     const data = {{ prefill_items|safe }};
     const tbody = document.querySelector('#items-table tbody');
@@ -158,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       recalcTotals();
     }
-  } catch(e) {}
+  } catch(e) { /* silent */ }
 });
 </script>
 {% endif %}

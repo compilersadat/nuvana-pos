@@ -3,38 +3,89 @@
 {% block breadcrumb %}Dashboard{% endblock %}
 
 {% block content %}
+<style>
+  /* --- Dashboard polish (scoped) --- */
+  .kpi-card{ position:relative; overflow:hidden; }
+  .kpi-card .kpi-icon{
+    width:44px; height:44px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    background:#eef3ff; color:#2b74c7;
+  }
+  .kpi-card .kpi-value{ font-size:2rem; line-height:1.15; letter-spacing:.2px; }
+  .kpi-bg{
+    position:absolute; inset:auto -20% -20% auto; width:220px; height:220px;
+    background: radial-gradient(120px 120px at 70% 30%, rgba(43,116,199,.10), transparent 55%);
+    pointer-events:none;
+  }
+  .card-section-title{
+    font-weight:600; letter-spacing:.2px;
+  }
+  .table thead th{ text-transform: none; letter-spacing: 0; font-weight:600; }
+  .rank-badge{
+    width:1.85rem; height:1.85rem; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-weight:600; background:#f1f5ff; color:#2b74c7;
+  }
+  .badge-dot{
+    display:inline-flex; align-items:center; gap:.4rem;
+  }
+  .badge-dot::before{
+    content:""; width:.5rem; height:.5rem; border-radius:50%; background:currentColor;
+    display:inline-block;
+  }
+  .sticky-help{
+    position:sticky; top:.75rem; z-index:10;
+  }
+</style>
+
 <div class="row g-3">
-  <!-- KPI cards -->
+  <!-- KPI: Today's Sales -->
   <div class="col-md-4">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted mb-1">Today's Sales</h6>
-        <h2 class="m-0">₹ {{ total_sales_today|floatformat:2 }}</h2>
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon"><i class="bi bi-currency-rupee"></i></div>
+        <div>
+          <div class="text-muted small">Today's Sales</div>
+          <div class="kpi-value">₹ {{ total_sales_today|floatformat:2 }}</div>
+        </div>
       </div>
+      <div class="kpi-bg"></div>
     </div>
   </div>
+
+  <!-- KPI: Products -->
   <div class="col-md-4">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted mb-1">Products</h6>
-        <h2 class="m-0">{{ total_products }}</h2>
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#eaf7f0;color:#1f8b4c;"><i class="bi bi-box-seam"></i></div>
+        <div>
+          <div class="text-muted small">Products</div>
+          <div class="kpi-value">{{ total_products }}</div>
+        </div>
       </div>
+      <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(31,139,76,.10), transparent 55%);"></div>
     </div>
   </div>
+
+  <!-- KPI: Low Stock -->
   <div class="col-md-4">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted mb-1">Low Stock (≤ Reorder)</h6>
-        <h2 class="m-0">{{ low_stock }}</h2>
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#fff3e9;color:#c05621;"><i class="bi bi-exclamation-triangle"></i></div>
+        <div>
+          <div class="text-muted small">Low Stock (≤ Reorder)</div>
+          <div class="kpi-value">{{ low_stock }}</div>
+        </div>
       </div>
+      <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(192,86,33,.10), transparent 55%);"></div>
     </div>
   </div>
 </div>
 
-<!-- Quick Links (classic professional launcher) -->
+<!-- Quick Links (kept) -->
 <div class="card shadow-sm mt-4">
   <div class="card-header bg-white d-flex align-items-center justify-content-between">
-    <h5 class="m-0">Quick Links</h5>
+    <h5 class="m-0 card-section-title">Quick Links</h5>
     <small class="text-muted">Common actions at a glance</small>
   </div>
   <div class="card-body">
@@ -83,12 +134,13 @@
   </div>
 </div>
 
-
 <!-- Low stock details -->
 <div class="card shadow-sm mt-4">
   <div class="card-header bg-white d-flex justify-content-between align-items-center">
-    <h5 class="m-0">Low Stock Details</h5>
-    <small class="text-muted">Up to 15 products at/below reorder</small>
+    <h5 class="m-0 card-section-title">Low Stock Details</h5>
+    <a href="{% url 'product_list' %}" class="btn btn-sm btn-light">
+      <i class="bi bi-boxes me-1"></i> View all products
+    </a>
   </div>
   <div class="card-body">
     <div class="table-responsive">
@@ -105,12 +157,22 @@
         <tbody>
           {% for p in low_stock_details %}
           <tr>
-            <td>{{ p.code }}</td>
+            <td class="font-monospace">{{ p.code }}</td>
             <td>{{ p.name }}</td>
-            <td class="text-end">{{ p.stock_sum|default:0 }}</td>
+            <td class="text-end">
+              {% if p.stock_sum|default:0 <= 0 %}
+                <span class="badge-dot text-danger">0</span>
+              {% elif p.stock_sum|default:0 <= p.reorder_level %}
+                <span class="badge-dot text-warning">{{ p.stock_sum|default:0 }}</span>
+              {% else %}
+                {{ p.stock_sum|default:0 }}
+              {% endif %}
+            </td>
             <td class="text-end">{{ p.reorder_level }}</td>
             <td class="text-end">
-              <a class="btn btn-sm btn-outline-primary" href="{% url 'product_add_stock' p.id %}">Add Stock</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'product_add_stock' p.id %}">
+                <i class="bi bi-plus-circle me-1"></i> Add Stock
+              </a>
             </td>
           </tr>
           {% empty %}
@@ -122,19 +184,20 @@
   </div>
 </div>
 
-<!-- Two-up: Top selling vs Top customers -->
+<!-- Top Selling & Top Customers -->
 <div class="row g-3 mt-1">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0 card-section-title">Top Selling (Last 30 days)</h5>
+        <a class="btn btn-sm btn-light" href="{% url 'sales_list' %}"><i class="bi bi-receipt me-1"></i>View Sales</a>
+      </div>
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <h5 class="m-0">Top Selling (Last 30 days)</h5>
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'sales_list' %}">View Sales</a>
-        </div>
-        <div class="table-responsive mt-3">
+        <div class="table-responsive">
           <table class="table table-sm table-striped align-middle mb-0">
             <thead>
               <tr>
+                <th style="width:54px">#</th>
                 <th style="width:90px">Code</th>
                 <th>Product</th>
                 <th class="text-end" style="width:120px">Qty</th>
@@ -144,13 +207,14 @@
             <tbody>
               {% for r in top_products %}
               <tr>
-                <td>{{ r.product__code }}</td>
+                <td><span class="rank-badge">{{ forloop.counter }}</span></td>
+                <td class="font-monospace">{{ r.product__code }}</td>
                 <td>{{ r.product__name }}</td>
                 <td class="text-end">{{ r.total_qty }}</td>
                 <td class="text-end">₹ {{ r.revenue|floatformat:2 }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="4" class="text-muted text-center">No sales in last 30 days</td></tr>
+              <tr><td colspan="5" class="text-muted text-center">No sales in last 30 days</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -161,31 +225,38 @@
 
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0 card-section-title">Top Purchasing Customers (Last 30 days)</h5>
+        <a class="btn btn-sm btn-light" href="{% url 'sales_list' %}"><i class="bi bi-people me-1"></i>View Sales</a>
+      </div>
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <h5 class="m-0">Top Purchasing Customers (Last 30 days)</h5>
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'sales_list' %}">View Sales</a>
-        </div>
-        <div class="table-responsive mt-3">
+        <div class="table-responsive">
           <table class="table table-sm table-striped align-middle mb-0">
             <thead>
               <tr>
                 <th>Customer</th>
                 <th class="text-end" style="width:110px">Invoices</th>
                 <th class="text-end" style="width:140px">Total</th>
-                <th style="width:240px">Top Product (Qty)</th>
+                <th style="width:260px">Top Product (Qty)</th>
               </tr>
             </thead>
             <tbody>
               {% for c in top_customers %}
               <tr>
-                <td>{{ c.customer__name|default:"Walk-in" }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
+                         style="width:28px;height:28px;background:#eef3ff;color:#2b74c7;font-weight:600;">
+                      {{ c.customer__name|default:"W"|slice:":1"|upper }}
+                    </div>
+                    <div>{{ c.customer__name|default:"Walk-in" }}</div>
+                  </div>
+                </td>
                 <td class="text-end">{{ c.invoices }}</td>
                 <td class="text-end">₹ {{ c.total|floatformat:2 }}</td>
-                <td>
+                <td class="text-truncate">
                   {% if c.top_product %}
-                    <span class="text-nowrap">{{ c.top_product_code }}</span>
-                    — {{ c.top_product }}
+                    <span class="font-monospace">{{ c.top_product_code }}</span> — {{ c.top_product }}
                     <span class="text-muted">({{ c.top_product_qty|default:0 }})</span>
                   {% else %}
                     <span class="text-muted">—</span>
@@ -201,11 +272,10 @@
       </div>
     </div>
   </div>
-  
 </div>
 
-<!-- Instructions -->
-<div class="card shadow-sm mt-3">
+<!-- Instructions (kept) -->
+<div class="card shadow-sm mt-3 sticky-help">
   <div class="card-header bg-white">
     <h6 class="m-0">Instructions</h6>
   </div>

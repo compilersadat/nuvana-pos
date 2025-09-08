@@ -545,8 +545,6 @@ def stock_report(request):
         'total_valuation': total_valuation,
     })
 
-
-# -------- Barcode Labels (PDF) with grids + EAN13 --------
 def _ean13_normalize(value: str):
     digits = ''.join(ch for ch in (value or '') if ch.isdigit())
     if len(digits) == 12:
@@ -565,6 +563,8 @@ def _ean13_normalize(value: str):
 @login_required
 @permission_required('posapp.can_print_barcodes', raise_exception=True)
 def barcode_labels(request):
+    from .models import Product  # local import to avoid circulars
+
     if request.method == 'GET':
         products = Product.objects.order_by('code').all()
         return render(request, 'products/barcodes.html', {'products': products})
@@ -575,10 +575,10 @@ def barcode_labels(request):
     sym = request.POST.get('sym', 'code128')
 
     presets = {
-        'a4_3x8': dict(cols=3, rows=8, margins=(10,10,10,13)),
-        'a4_3x7': dict(cols=3, rows=7, margins=(10,10,10,13)),
-        'a4_4x12': dict(cols=4, rows=12, margins=(8,8,8,12)),
-        'a4_5x13': dict(cols=5, rows=13, margins=(6,6,6,10)),
+        'a4_3x8': dict(cols=3, rows=8, margins=(10, 10, 10, 13)),
+        'a4_3x7': dict(cols=3, rows=7, margins=(10, 10, 10, 13)),
+        'a4_4x12': dict(cols=4, rows=12, margins=(8, 8, 8, 12)),
+        'a4_5x13': dict(cols=5, rows=13, margins=(6, 6, 6, 10)),
     }
     if tpl == 'custom':
         try:
@@ -594,9 +594,10 @@ def barcode_labels(request):
     else:
         preset = presets.get(tpl, presets['a4_3x8'])
 
-    cols, rows = preset['cols'], preset['rows']
-    ml, mr, mt, mb = preset['margins']
+    cols, rows = int(preset['cols']), int(preset['rows'])
+    ml, mr, mt, mb = (float(x) for x in preset['margins'])
 
+    # Build label list
     items = []
     for pid, q in zip(ids, qtys):
         try:
@@ -604,77 +605,97 @@ def barcode_labels(request):
             qn = max(0, int(q))
         except Exception:
             continue
-        if qn > 0:
-            code = p.barcode or p.code
-            if sym == 'ean13':
-                ean = _ean13_normalize(code)
-                code_to_use = ean if ean else code
-            else:
-                code_to_use = code
-            items.extend([(p, code_to_use)] * qn)
+        if qn <= 0:
+            continue
+        raw = p.barcode or p.code
+        code_to_use = _ean13_normalize(raw) if sym == 'ean13' else raw
+        if sym == 'ean13' and not code_to_use:
+            code_to_use = raw  # fallback to original if invalid for EAN
+        items.extend([(p, code_to_use)] * qn)
 
     if not items:
         messages.error(request, 'Select at least one product with quantity.')
         return redirect('product_barcodes')
 
+    # PDF layout
     page_w, page_h = A4
-    left_margin, right_margin, top_margin, bottom_margin = ml*mm, mr*mm, mt*mm, mb*mm
+    left_margin, right_margin = ml * mm, mr * mm
+    top_margin, bottom_margin = mt * mm, mb * mm
+
     label_w = (page_w - left_margin - right_margin) / cols
     label_h = (page_h - top_margin - bottom_margin) / rows
+    inner_pad = 3 * mm
 
     resp = HttpResponse(content_type='application/pdf')
     resp['Content-Disposition'] = 'attachment; filename="barcodes.pdf"'
     c = canvas.Canvas(resp, pagesize=A4)
+    c.setTitle("Barcode Labels")
 
-    base_barwidth = max(0.2, min(0.5, float(label_w) / 300.0))
+    per_page = cols * rows
 
-    x = y = 0
-    for idx, (p, code_val) in enumerate(items):
-        col = x % cols
-        row = y % rows
+    for i, (p, code_val) in enumerate(items):
+        cell = i % per_page
+        row = cell // cols
+        col = cell % cols
+
+        if i and cell == 0:
+            c.showPage()
+
         lx = left_margin + col * label_w
         ly = page_h - top_margin - (row + 1) * label_h
 
-        padding = 3*mm
-        name_max_width = label_w - 2*padding
+        # --- dotted border per label ---
+        c.saveState()
+        c.setLineWidth(0.6)
+        c.setDash(1, 2)  # dotted
+        c.rect(lx, ly, label_w, label_h, stroke=1, fill=0)
+        c.restoreState()
 
-        name_lines = simpleSplit(p.name, 'Helvetica', 8, name_max_width)
-        name_text_y = ly + label_h - padding - 8
-        c.setFont('Helvetica', 8)
-        for line in name_lines[:2]:
-            c.drawString(lx + padding, name_text_y, line)
-            name_text_y -= 9
+        # --- Product name (centered, same column as barcode) ---
+        name_font, name_size = 'Helvetica', 8
+        name_max_w = label_w - 2 * inner_pad
+        name_lines = simpleSplit(p.name or '', name_font, name_size, name_max_w)[:2]
 
-        price_str = f"₹ {p.unit_price}"
-        c.setFont('Helvetica', 8)
-        c.drawRightString(lx + label_w - padding, ly + padding + 12, price_str)
+        c.setFont(name_font, name_size)
+        y_text = ly + label_h - inner_pad - name_size
+        for line in name_lines:
+            c.drawCentredString(lx + label_w / 2.0, y_text, line)
+            y_text -= (name_size + 1)
+
+        # --- Barcode area under the name ---
+        barcode_top = y_text - 2
+        min_bar_h = 10 * mm
+        bar_y = ly + inner_pad + 16  # leave room for human-readable text
+        barcode_height = max(min_bar_h, barcode_top - bar_y)
 
         try:
             if sym == 'ean13' and _ean13_normalize(code_val):
-                d = createBarcodeDrawing('EAN13', value=_ean13_normalize(code_val), barHeight=label_h/2.5, barWidth=base_barwidth, humanReadable=False)
-                dx = lx + (label_w - d.width)/2
-                renderPDF.draw(d, c, dx, ly + padding + 18)
+                code_norm = _ean13_normalize(code_val)
+                d = createBarcodeDrawing('EAN13', value=code_norm, barHeight=barcode_height, humanReadable=False)
+                avail_w = label_w - 2 * inner_pad
+                scale = min(1.0, avail_w / float(d.width)) if d.width else 1.0
+                dx = lx + (label_w - d.width * scale) / 2.0
+                c.saveState()
+                c.translate(dx, bar_y)
+                c.scale(scale, 1.0)
+                renderPDF.draw(d, c, 0, 0)
+                c.restoreState()
+
                 c.setFont('Helvetica', 8)
-                c.drawCentredString(lx + label_w/2, ly + padding + 2, _ean13_normalize(code_val))
+                c.drawCentredString(lx + label_w / 2.0, ly + inner_pad + 2, code_norm)
             else:
-                b = code128.Code128(str(code_val), barHeight=label_h/2.5, barWidth=base_barwidth)
-                bw = b.width
-                bx = lx + (label_w - bw)/2
-                b.drawOn(c, bx, ly + padding + 18)
+                tentative_bw = max(0.18, (label_w - 2 * inner_pad) / 220.0)
+                b = code128.Code128(str(code_val), barHeight=barcode_height, barWidth=tentative_bw)
+                bw = float(b.width)
+                bx = lx + (label_w - bw) / 2.0
+                b.drawOn(c, bx, bar_y)
+
                 c.setFont('Helvetica', 8)
-                c.drawCentredString(lx + label_w/2, ly + padding + 2, str(code_val))
+                c.drawCentredString(lx + label_w / 2.0, ly + inner_pad + 2, str(code_val))
         except Exception:
             c.setFont('Helvetica', 8)
-            c.drawCentredString(lx + label_w/2, ly + label_h/2, str(code_val))
+            c.drawCentredString(lx + label_w / 2.0, ly + label_h / 2.0, str(code_val))
 
-        x += 1
-        if (x % cols) == 0:
-            y += 1
-        if (y % rows) == 0 and (idx + 1) < len(items):
-            c.showPage()
-            x = y = 0
-
-    c.showPage()
     c.save()
     return resp
 
@@ -783,9 +804,6 @@ def stock_bulk_adjust(request):
     return render(request, 'products/stock_bulk_adjust.html')
 
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
 
 def _report_pdf_response(title, headers, rows, footer_lines=None, col_widths=None):
     """Create a simple tabular PDF report.
