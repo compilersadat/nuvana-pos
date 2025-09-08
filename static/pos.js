@@ -324,3 +324,80 @@ document.addEventListener('DOMContentLoaded', function () {
 
   recalcTotals();
 });
+
+/* ===== Universal barcode-scanner listener (keyboard wedge) ===== */
+// Treat very fast consecutive keystrokes as a barcode scan.
+// Works even when focus isn't on the Quick Scan box.
+(function () {
+  const scanner = {
+    buf: '',
+    lastTs: 0,
+    timeout: null,
+    // Tweaks:
+    minLength: 6,    // ignore short bursts
+    maxGap: 35,      // ms between keys to still consider "scanner speed"
+    idleCommit: 120, // if no key within this time, commit as a scan (for scanners without Enter/Tab)
+  };
+
+  function commitScan() {
+    const text = scanner.buf.trim();
+    scanner.buf = '';
+    if (!text || text.length < scanner.minLength) return;
+
+    // Reflect in the visible box (optional)
+    const qs = document.getElementById('quick_scan');
+    if (qs) qs.value = text;
+
+    if (typeof addOrBumpFromQuickScan === 'function') {
+      const ok = addOrBumpFromQuickScan(text);
+      if (ok && qs) qs.value = '';
+      if (!ok) {
+        const box = document.getElementById('pos_error');
+        if (box) {
+          box.textContent = 'No matching product for scanned code: ' + text;
+          box.classList.remove('d-none');
+        }
+      }
+    }
+  }
+
+  function onKeyDown(e) {
+    // ignore modifiers & IME
+    if (e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
+
+    const k = e.key;
+    const ts = e.timeStamp || Date.now();
+    const gap = ts - (scanner.lastTs || ts);
+    scanner.lastTs = ts;
+
+    // If the gap is big, start a new buffer (user typing)
+    if (gap > scanner.maxGap) {
+      scanner.buf = '';
+    }
+
+    if (k === 'Enter' || k === 'NumpadEnter' || k === 'Tab') {
+      // Many scanners send Enter or Tab as suffix
+      if (scanner.buf.length >= scanner.minLength) {
+        e.preventDefault();
+        commitScan();
+      }
+      return;
+    }
+
+    // Printable char? (letters, digits, common symbols)
+    if (k.length === 1) {
+      scanner.buf += k;
+
+      // Idle fallback for scanners that send no suffix
+      clearTimeout(scanner.timeout);
+      scanner.timeout = setTimeout(commitScan, scanner.idleCommit);
+      return;
+    }
+
+    // Ignore other keys (arrows, backspace, etc.) for scanner flow
+  }
+
+  // Global capture so it works even if quick_scan isn't focused
+  document.addEventListener('keydown', onKeyDown, true);
+})();
+
