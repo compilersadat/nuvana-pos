@@ -1,23 +1,43 @@
 # launch_pos.py
-import os, sys, time, threading, webbrowser, pathlib
+import os, sys, time, threading, webbrowser, pathlib, traceback
 
-# Ensure project is importable
+# -------------------------
+# App constants & paths
+# -------------------------
+APP_NAME = "StationeryPOS"
 BASE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE))
 
-# Use a writable data dir for SQLite on Windows
-APP_NAME = "StationeryPOS"
-APPDATA = os.environ.get("APPDATA", str(BASE))
+APPDATA = os.environ.get("APPDATA", str(BASE))  # per-user writable
 DATA_DIR = pathlib.Path(APPDATA) / APP_NAME
+LOG_DIR = DATA_DIR / "logs"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Tell settings where to keep the DB (so your settings can read this)
+LOG_FILE = LOG_DIR / "app.log"
+
+# -------------------------
+# Ensure stdout/stderr exist (EXE with console=False → None)
+# -------------------------
+if sys.stdout is None:
+    sys.stdout = open(LOG_FILE, "a", buffering=1, encoding="utf-8", errors="replace")
+if sys.stderr is None:
+    sys.stderr = sys.stdout
+
+def log(msg: str):
+    try:
+        print(msg, file=sys.stdout, flush=True)
+    except Exception:
+        pass
+
+# -------------------------
+# Environment for Django
+# -------------------------
 os.environ.setdefault("DJANGO_DB_PATH", str(DATA_DIR / "db.sqlite3"))
-
-# Django settings module (adjust to your settings module path)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "stationery_pos.settings")
+os.environ.setdefault("PORT", "8000")  # change via env or .env
 
-# Optional: make Django serve static files nicely in prod using WhiteNoise (if you added it)
+# Optional (if using WhiteNoise + DEBUG=False)
 # os.environ.setdefault("WHITENOISE_AUTOREFRESH", "false")
 
 import django
@@ -31,19 +51,50 @@ def open_browser_later(url):
         pass
 
 def main():
+    log("Launcher starting…")
+    log(f"DATA_DIR={DATA_DIR}")
+    log(f"LOG_FILE={LOG_FILE}")
+
     django.setup()
 
-    # Create DB / apply migrations (first run friendly)
-    call_command("migrate", interactive=False, run_syncdb=True)
+    # First-run friendly: migrate (safe to re-run)
+    log("Running migrations…")
+    call_command("migrate", interactive=False, run_syncdb=True,
+                 stdout=sys.stdout, stderr=sys.stderr)
 
-    # Optional: collect static if you use WhiteNoise + DEBUG=False
-    # call_command("collectstatic", interactive=False, verbosity=0)
+    # If you serve static via WhiteNoise in production, uncomment next line
+    # log("Collecting static…")
+    # call_command("collectstatic", interactive=False, verbosity=0,
+    #              stdout=sys.stdout, stderr=sys.stderr)
 
-    url = "http://127.0.0.1:8000"
+    port = os.environ.get("PORT", "8000")
+    url = f"http://127.0.0.1:{port}"
     threading.Thread(target=open_browser_later, args=(url,), daemon=True).start()
 
-    # Easiest: run the built-in server for local/offline usage
-    call_command("runserver", "127.0.0.1:8000", use_threading=True)
+    # Local server for offline usage (simple & fine for single-user POS)
+    log(f"Starting runserver at {url} …")
+    call_command("runserver", f"127.0.0.1:{port}", use_threading=True,
+                 stdout=sys.stdout, stderr=sys.stderr)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        # Log full traceback
+        tb = traceback.format_exc()
+        log("FATAL ERROR:\n" + tb)
+
+        # Optional: show a Windows message box for non-technical users
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                None,
+                f"StationeryPOS failed to start.\n\nSee log:\n{LOG_FILE}\n\n{tb}",
+                "StationeryPOS Error",
+                0x00000010  # MB_ICONERROR
+            )
+        except Exception:
+            pass
+
+        # Exit non-zero so installer/OS knows it failed
+        sys.exit(1)
