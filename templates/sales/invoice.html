@@ -3,6 +3,7 @@
 {% block title %}{{ sale.is_return|yesno:"Credit Note,Invoice" }} #{{ sale.is_return|yesno:"CRN,INV" }}-{{ sale.id }} — Stationery POS{% endblock %}
 
 {% block content %}
+
 <div class="d-print-none mb-3 d-flex justify-content-between align-items-center">
   <a href="javascript:history.back()" class="btn btn-light"><i class="bi bi-arrow-left"></i> Back</a>
   <div class="d-flex gap-2">
@@ -10,130 +11,212 @@
   </div>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-body">
+<!-- RECEIPT -->
+<div class="receipt">
 
-    <!-- Header (Org block) -->
-    <div class="d-flex justify-content-between align-items-start">
-      <div class="d-flex align-items-start gap-3">
-        <img src="{% static 'logo.png' %}" alt="Logo" style="height:56px; width:auto;" onerror="this.style.display='none'">
-        <div>
-          <h4 class="mb-1">{{ org_name|default:"Your Organization Name" }}</h4>
-          <div class="text-muted small">
-            {{ org_address|default:"Street, City, State, ZIP" }}<br>
-            <span>Phone:</span> {{ org_phone|default:"000-000-0000" }}
-            {% if org_email %} | <span>Email:</span> {{ org_email }}{% endif %}
-          </div>
-        </div>
-      </div>
-      <div class="text-end">
-        <div class="fw-semibold">{{ sale.is_return|yesno:"Credit Note,Invoice" }}</div>
-        <div class="h5 mb-0">{{ sale.is_return|yesno:"CRN,INV" }}-{{ sale.id }}</div>
-        <div class="text-muted">Date: {{ sale.date }}</div>
-      </div>
+  <!-- Header -->
+  <div class="center">
+    <img src="{% static 'logo.png' %}" alt="Logo" class="logo" onerror="this.style.display='none'">
+    <div class="org-name">{{ org_name|default:"Your Organization Name" }}</div>
+    <div class="muted">
+      {{ org_address|default:"Street, City, State, ZIP" }}<br>
+      Ph: {{ org_phone|default:"000-000-0000" }}{% if org_email %} | {{ org_email }}{% endif %}
     </div>
-
-    <hr>
-
-    <!-- Bill-to / Payment summary -->
-    <div class="row g-3 mb-2">
-      <div class="col-md-7">
-        <div class="border rounded p-2">
-          <div class="fw-semibold mb-1">Bill To</div>
-          {% if sale.customer %}
-            <div>{{ sale.customer.name }}</div>
-            {% if sale.customer.phone %}<div class="text-muted small">{{ sale.customer.phone }}</div>{% endif %}
-            {% if sale.customer.email %}<div class="text-muted small">{{ sale.customer.email }}</div>{% endif %}
-          {% else %}
-            <div class="text-muted">Walk-in customer</div>
-          {% endif %}
-        </div>
-      </div>
-      <div class="col-md-5">
-        <div class="border rounded p-2">
-          <div class="fw-semibold mb-1">Payment</div>
-          <div class="d-flex justify-content-between"><span>Method</span><span>{{ sale.get_payment_method_display }}</span></div>
-          <div class="d-flex justify-content-between"><span>Paid</span><span>₹ {{ sale.paid_amount|floatformat:2 }}</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Items -->
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Item</th>
-            <th class="text-end" style="width:90px">Qty</th>
-            <th class="text-end" style="width:120px">Price</th>
-            <th class="text-end" style="width:100px">Tax %</th>
-            <th class="text-end" style="width:120px">Tax</th>
-            <th class="text-end" style="width:140px">Line Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for it in items %}
-          <tr>
-            <td>{{ it.product.name }}</td>
-            <td class="text-end">{{ it.qty }}</td>
-            <td class="text-end">₹ {{ it.unit_price|floatformat:2 }}</td>
-            <td class="text-end">{{ it.tax_percent|floatformat:2 }}</td>
-            <td class="text-end">₹ {{ it.tax_amount|floatformat:2 }}</td>
-            <td class="text-end">₹ {{ it.line_total|floatformat:2 }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Totals -->
-    <div class="row">
-      <div class="col-md-6">
-        {% if sale.notes %}
-          <div class="small text-muted">Notes:</div>
-          <div class="border rounded p-2 small">{{ sale.notes }}</div>
-        {% endif %}
-      </div>
-      <div class="col-md-6">
-        <div class="ms-auto" style="max-width:360px">
-          <div class="d-flex justify-content-between"><span>Subtotal</span><span>₹ {{ sale.subtotal|floatformat:2 }}</span></div>
-          <div class="d-flex justify-content-between"><span>Discount</span><span>₹ {{ sale.discount|floatformat:2 }}</span></div>
-          <div class="d-flex justify-content-between"><span>Tax</span><span>₹ {{ sale.tax|floatformat:2 }}</span></div>
-          <hr class="my-2">
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-semibold">Grand Total</span>
-            <span class="fw-bold fs-5">₹ {{ sale.total|floatformat:2 }}</span>
-          </div>
-          {% if sale.is_return %}
-            <div class="text-danger text-end small mt-1">Credit note amounts are negative.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <hr>
-
-    <!-- Footer -->
-    <div class="d-flex justify-content-between align-items-end">
-      <div class="small text-muted">
-        Thank you for your business.<br>
-        Keep this {{ sale.is_return|yesno:"credit note,invoice" }} for your records.
-      </div>
-      <div class="text-end small text-muted">
-        {{ org_name|default:"Your Organization Name" }} • {{ org_phone|default:"000-000-0000" }}{% if org_email %} • {{ org_email }}{% endif %}<br>
-        <span class="text-muted">Powered by Stationery POS</span>
-      </div>
-    </div>
-
   </div>
+
+  <div class="divider"></div>
+
+  <!-- Invoice meta -->
+  <div class="row">
+    <span>{{ sale.is_return|yesno:"Credit Note,Invoice" }}</span>
+    <span>{{ sale.is_return|yesno:"CRN,INV" }}-{{ sale.id }}</span>
+  </div>
+  <div class="row">
+    <span>Date</span>
+    <span>{{ sale.date }}</span>
+  </div>
+
+  {% if sale.get_payment_method_display %}
+  <div class="row">
+    <span>Payment</span>
+    <span>{{ sale.get_payment_method_display }}</span>
+  </div>
+  {% endif %}
+
+  <div class="divider dotted"></div>
+
+  <!-- Bill To -->
+  <div class="label">Bill To</div>
+  {% if sale.customer %}
+    <div class="wrap">{{ sale.customer.name }}</div>
+    {% if sale.customer.phone %}<div class="muted small">Ph: {{ sale.customer.phone }}</div>{% endif %}
+    {% if sale.customer.email %}<div class="muted small">Email: {{ sale.customer.email }}</div>{% endif %}
+  {% else %}
+    <div class="muted">Walk-in customer</div>
+  {% endif %}
+
+  <div class="divider dotted"></div>
+
+  <!-- Items -->
+  <div class="hdr row">
+    <span class="w-56">Item</span>
+    <span class="w-16 right">Qty</span>
+    <span class="w-28 right">Amount</span>
+  </div>
+
+  {% for it in items %}
+    <div class="wrap item-name">{{ it.product.name }}</div>
+    <div class="row tiny">
+      <span class="w-56 muted">₹ {{ it.unit_price|floatformat:2 }} × {{ it.qty }}</span>
+      <span class="w-16 right muted">{% if it.tax_percent %}{{ it.tax_percent|floatformat:0 }}%{% else %}-{% endif %}</span>
+      <span class="w-28 right">₹ {{ it.line_total|floatformat:2 }}</span>
+    </div>
+    {% if it.tax_amount %}
+      <div class="row tiny muted">
+        <span class="w-56">Tax</span>
+        <span class="w-16 right"></span>
+        <span class="w-28 right">₹ {{ it.tax_amount|floatformat:2 }}</span>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <div class="divider"></div>
+
+  <!-- Totals -->
+  <div class="row">
+    <span>Subtotal</span>
+    <span>₹ {{ sale.subtotal|floatformat:2 }}</span>
+  </div>
+  <div class="row">
+    <span>Discount</span>
+    <span>₹ {{ sale.discount|floatformat:2 }}</span>
+  </div>
+  <div class="row">
+    <span>Tax</span>
+    <span>₹ {{ sale.tax|floatformat:2 }}</span>
+  </div>
+  <div class="row">
+    <span>Paid</span>
+    <span>₹ {{ sale.paid_amount|floatformat:2 }}</span>
+  </div>
+
+  <div class="total row">
+    <span>Grand Total</span>
+    <span>₹ {{ sale.total|floatformat:2 }}</span>
+  </div>
+
+  {% if sale.is_return %}
+    <div class="center danger tiny">Note: Credit note amounts are negative.</div>
+  {% endif %}
+
+  {% if sale.notes %}
+    <div class="divider dotted"></div>
+    <div class="label">Notes</div>
+    <div class="wrap small">{{ sale.notes }}</div>
+  {% endif %}
+
+  <div class="divider dotted"></div>
+
+  <!-- Footer -->
+  <div class="center small">
+    Thank you for your business.<br>
+    Keep this {{ sale.is_return|yesno:"credit note,invoice" }} for your records.
+  </div>
+
+  <div class="center xsmall muted mt-6">
+    {{ org_name|default:"Your Organization Name" }} • {{ org_phone|default:"000-000-0000" }}{% if org_email %} • {{ org_email }}{% endif %}<br>
+    Powered by Stationery POS
+  </div>
+
 </div>
 
 <style>
-  @media print {
-    .navbar, .d-print-none, .btn, .alert { display: none !important; }
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .card { border: none !important; box-shadow: none !important; }
-    .table thead.table-light th { background: #f6f7f9 !important; -webkit-print-color-adjust: exact; }
-  }
+/* ===== Thermal Receipt Styles (58mm/80mm) =====
+   - Switch width between 58mm and 80mm by changing --paper-width
+*/
+:root { --paper-width: 58mm; --font-size: 11px; }
+@media screen { .receipt { box-shadow: 0 0 1px rgba(0,0,0,.2); } }
+
+.receipt {
+  width: var(--paper-width);
+  margin: 0 auto;
+  padding: 6px 8px;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: var(--font-size);
+  line-height: 1.25;
+  color: #111;
+}
+
+.logo {
+  height: 36px;
+  width: auto;
+  margin-bottom: 4px;
+}
+
+.center { text-align: center; }
+.right { text-align: right; }
+.muted { color: #666; }
+.danger { color: #d11; }
+.small { font-size: 0.95em; }
+.xsmall { font-size: 0.85em; }
+.tiny { font-size: 0.85em; }
+.mt-6 { margin-top: 6px; }
+
+.org-name { font-weight: 700; margin-bottom: 2px; }
+
+.label { font-weight: 600; margin-bottom: 2px; }
+.wrap { word-break: break-word; white-space: normal; }
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.hdr { font-weight: 600; margin-top: 4px; }
+.item-name { margin-top: 4px; }
+
+.w-56 { width: 56%; }
+.w-28 { width: 28%; }
+.w-16 { width: 16%; }
+
+.divider {
+  border-top: 1px solid #000;
+  margin: 6px 0;
+}
+.divider.dotted {
+  border-top: 1px dotted #000;
+  margin: 6px 0;
+}
+
+.total {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 2px solid #000;
+  font-weight: 700;
+  font-size: calc(var(--font-size) * 1.05);
+}
+
+/* Print adjustments */
+@page {
+  size: var(--paper-width) auto;
+  margin: 0;
+}
+@media print {
+  :root { --font-size: 10.5px; } /* slightly tighter on print */
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .navbar, .d-print-none, .btn, .alert { display: none !important; }
+  .receipt { box-shadow: none !important; padding: 6px 8px; }
+}
+
+/* Optional: set to 80mm by overriding root var on wider screens */
+@media screen and (min-width: 400px) {
+  /* Uncomment if you want to preview at 80mm on desktop
+  :root { --paper-width: 80mm; }
+  */
+}
 </style>
+
 {% endblock %}
