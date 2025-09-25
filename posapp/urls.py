@@ -47,4 +47,13 @@ urlpatterns = [
     path('security/roles/new/', views.security_role_new, name='security_role_new'),
     path('security/roles/<int:role_id>/edit/', views.security_role_edit, name='security_role_edit'),
     path('settings/', views.settings_general, name='settings_general'),
+
+    path('credit/receive/', views.receive_payment, name='receive_payment'),
+    path('credit/charge/', views.customer_charge, name='customer_charge'),
+    path('credit/statement/', views.customer_statement, name='customer_statement'),
+    path('settings/', views.settings_general, name='settings_general'),
+    path('api/customer/<int:customer_id>/balance/', views.customer_balance_api, name='customer_balance_api'),
+
+    path('settings/backup/now/', views.backup_download_now, name='backup_download_now'),
+
 ]

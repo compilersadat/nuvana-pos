@@ -74,6 +74,31 @@
                 </ul>
               </li>
             {% endif %}
+          
+            {% if perms.posapp.can_credit_receive or perms.posapp.can_credit_charge or perms.posapp.can_credit_view %}
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                  <i class="bi bi-credit-card me-1"></i>Credit
+                </a>
+                <ul class="dropdown-menu shadow-sm">
+                  {% if perms.posapp.can_credit_receive %}
+                    <li><a class="dropdown-item" href="{% url 'receive_payment' %}">
+                      <i class="bi bi-cash-coin me-2"></i>Receive Payment
+                    </a></li>
+                  {% endif %}
+                  {% if perms.posapp.can_credit_charge %}
+                    <li><a class="dropdown-item" href="{% url 'customer_charge' %}">
+                      <i class="bi bi-plus-slash-minus me-2"></i>Add Charge
+                    </a></li>
+                  {% endif %}
+                  {% if perms.posapp.can_credit_view %}
+                    <li><a class="dropdown-item" href="{% url 'customer_statement' %}">
+                      <i class="bi bi-receipt me-2"></i>Customer Statement
+                    </a></li>
+                  {% endif %}
+                </ul>
+              </li>
+            {% endif %}
 
             {% if perms.posapp.can_manage_users or user.is_superuser %}
             <li class="nav-item dropdown">
@@ -98,6 +123,7 @@
               </ul>
             </li>
             {% endif %}
+
           </ul>
           
 
@@ -150,7 +176,7 @@
     </footer>
 
     <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}?v=offline2"></script>
-    <script src="{% static 'pos.js' %}?v=8"></script>
+    <script src="{% static 'pos.js' %}?v=10"></script>
     <script src="{% static 'vendor/tom-select/tom-select.complete.min.js' %}"></script>
     <script src="{% static 'select-enhance.js' %}?v=1"></script>
 

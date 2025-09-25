@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Receive Payment — Stationery POS{% endblock %}
+{% block breadcrumb %}Credit / Receive Payment{% endblock %}
+
+{% block content %}
+{% include "credit/_nav.html" %}
+
+<form method="post" action="{% url 'receive_payment' %}" class="row g-3" id="receive-form" novalidate>
+    {% csrf_token %}
+
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <h5 class="m-0"><i class="bi bi-cash-coin text-success me-2"></i>Receive Payment</h5>
+        <small class="text-muted">Post a payment to customer ledger</small>
+      </div>
+
+      <div class="card-body">
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Customer <span class="text-danger">*</span></label>
+            {{ form.customer }}
+            {% if form.customer.errors %}<div class="invalid-feedback d-block">{{ form.customer.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Date</label>
+            {{ form.date}}
+            {% if form.date.errors %}<div class="invalid-feedback d-block">{{ form.date.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Amount <span class="text-danger">*</span></label>
+            {{ form.amount }}
+            {% if form.amount.errors %}<div class="invalid-feedback d-block">{{ form.amount.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Reference / Notes</label>
+            {{ form.reference}}
+            {% if form.reference.errors %}<div class="invalid-feedback d-block">{{ form.reference.errors|striptags }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer bg-white d-flex justify-content-end gap-2">
+        <a href="{% url 'dashboard' %}" class="btn btn-light"><i class="bi bi-x-circle me-1"></i>Cancel</a>
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-check2-circle me-1"></i>Record Payment
+          </button>      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar: live credit summary -->
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm border-0" style="position:sticky; top:1rem;">
+      <div class="card-header bg-white">
+        <h6 class="m-0"><i class="bi bi-graph-up-arrow me-1"></i>Customer Credit</h6>
+      </div>
+      <div class="card-body">
+        <div id="creditBox" class="d-none">
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">Current Balance</div>
+            <div id="cBalance" class="fw-bold">₹ 0.00</div>
+          </div>
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">Credit Limit</div>
+            <div id="cLimit">₹ 0.00</div>
+          </div>
+          <div class="d-flex justify-content-between border-top pt-2 mt-2">
+            <div class="fw-semibold">Available</div>
+            <div id="cAvail" class="fw-semibold">₹ 0.00</div>
+          </div>
+          <div id="cStatus" class="mt-2 small"></div>
+        </div>
+        <div id="creditEmpty" class="text-muted small">Pick a customer to view credit summary.</div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+
+(function(){
+    const f = document.getElementById('receive-form');
+    if (!f) return;
+    f.addEventListener('submit', function(e){
+      // Optional: disable the submit button to avoid double submits
+      console.log("submit");
+      const btn = f.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…'; }
+    });
+  })();
+(function(){
+  const sel = document.getElementById('{{ form.customer.id_for_label }}');
+  const box = document.getElementById('creditBox');
+  const empty = document.getElementById('creditEmpty');
+  const b = (n) => document.getElementById(n);
+
+  async function refreshCredit() {
+    const id = sel && sel.value ? sel.value : null;
+    if (!id) {
+      box?.classList.add('d-none'); empty?.classList.remove('d-none'); return;
+    }
+    try {
+      const r = await fetch("{% url 'customer_balance_api' 0 %}".replace('/0/', `/${id}/`));
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      const bal = parseFloat(data.balance || '0');
+      const lim = parseFloat(data.credit_limit || '0');
+      const avail = (lim - bal);
+      b('cBalance').textContent = `₹ ${bal.toFixed(2)}`;
+      b('cLimit').textContent   = `₹ ${lim.toFixed(2)}`;
+      b('cAvail').textContent   = `₹ ${avail.toFixed(2)}`;
+      const pct = lim > 0 ? (bal/lim*100) : 0;
+      const status = (pct >= {{ settings.credit_alert_threshold|default_if_none:80|default:80 }}) ? 'text-warning' : 'text-success';
+      b('cStatus').className = `mt-2 small ${status}`;
+      b('cStatus').textContent = lim > 0 ? `Usage: ${pct.toFixed(0)}% of limit` : 'No credit limit set';
+      box?.classList.remove('d-none'); empty?.classList.add('d-none');
+    } catch(e) {
+      box?.classList.add('d-none'); empty?.classList.remove('d-none');
+    }
+  }
+  sel?.addEventListener('change', refreshCredit);
+  if (sel && sel.value) refreshCredit();
+})();
+
+
+</script>
+{% endblock %}

@@ -17,25 +17,22 @@
     background: radial-gradient(120px 120px at 70% 30%, rgba(43,116,199,.10), transparent 55%);
     pointer-events:none;
   }
-  .card-section-title{
-    font-weight:600; letter-spacing:.2px;
-  }
+  .card-section-title{ font-weight:600; letter-spacing:.2px; }
   .table thead th{ text-transform: none; letter-spacing: 0; font-weight:600; }
   .rank-badge{
     width:1.85rem; height:1.85rem; border-radius:50%;
     display:inline-flex; align-items:center; justify-content:center;
     font-weight:600; background:#f1f5ff; color:#2b74c7;
   }
-  .badge-dot{
-    display:inline-flex; align-items:center; gap:.4rem;
-  }
-  .badge-dot::before{
-    content:""; width:.5rem; height:.5rem; border-radius:50%; background:currentColor;
-    display:inline-block;
-  }
-  .sticky-help{
-    position:sticky; top:.75rem; z-index:10;
-  }
+  .badge-dot{ display:inline-flex; align-items:center; gap:.4rem; }
+  .badge-dot::before{ content:""; width:.5rem; height:.5rem; border-radius:50%; background:currentColor; display:inline-block; }
+  .sticky-help{ position:sticky; top:.75rem; z-index:10; }
+
+  /* Credit chips */
+  .chip{ font-size:.8rem; border-radius:.5rem; padding:.15rem .5rem; }
+  .chip-ok{ background:#eefcf6; color:#087443; }
+  .chip-warn{ background:#fff7e6; color:#8a6100; }
+  .chip-bad{ background:#ffecec; color:#a11010; }
 </style>
 
 <div class="row g-3">
@@ -46,7 +43,7 @@
         <div class="kpi-icon"><i class="bi bi-currency-rupee"></i></div>
         <div>
           <div class="text-muted small">Today's Sales</div>
-          <div class="kpi-value">₹ {{ total_sales_today|floatformat:2 }}</div>
+          <div class="kpi-value">₹ {{ total_sales_today|default:0|floatformat:2 }}</div>
         </div>
       </div>
       <div class="kpi-bg"></div>
@@ -60,7 +57,7 @@
         <div class="kpi-icon" style="background:#eaf7f0;color:#1f8b4c;"><i class="bi bi-box-seam"></i></div>
         <div>
           <div class="text-muted small">Products</div>
-          <div class="kpi-value">{{ total_products }}</div>
+          <div class="kpi-value">{{ total_products|default:0 }}</div>
         </div>
       </div>
       <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(31,139,76,.10), transparent 55%);"></div>
@@ -74,7 +71,7 @@
         <div class="kpi-icon" style="background:#fff3e9;color:#c05621;"><i class="bi bi-exclamation-triangle"></i></div>
         <div>
           <div class="text-muted small">Low Stock (≤ Reorder)</div>
-          <div class="kpi-value">{{ low_stock }}</div>
+          <div class="kpi-value">{{ low_stock|default:0 }}</div>
         </div>
       </div>
       <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(192,86,33,.10), transparent 55%);"></div>
@@ -82,53 +79,133 @@
   </div>
 </div>
 
-<!-- Quick Links (kept) -->
-<div class="card shadow-sm mt-4">
-  <div class="card-header bg-white d-flex align-items-center justify-content-between">
-    <h5 class="m-0 card-section-title">Quick Links</h5>
-    <small class="text-muted">Common actions at a glance</small>
+<!-- Credit KPIs -->
+<div class="row g-3 mt-1">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#f0f5ff;color:#2b74c7;"><i class="bi bi-wallet2"></i></div>
+        <div>
+          <div class="text-muted small">Outstanding Credit</div>
+          <div class="kpi-value">₹ {{ credit_kpis.total_outstanding|default:0|floatformat:2 }}</div>
+          <div class="small text-muted">Sum of all customer balances</div>
+        </div>
+      </div>
+      <div class="kpi-bg"></div>
+    </div>
   </div>
-  <div class="card-body">
-    <div class="row row-cols-2 row-cols-md-4 g-3">
-      <div class="col">
-        <a href="{% url 'pos_sale_create' %}" class="btn btn-outline-primary w-100 py-3">
-          <i class="bi bi-cash-coin me-2"></i> POS (New Sale)
-        </a>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#fff7e6;color:#8a6100;"><i class="bi bi-thermometer-half"></i></div>
+        <div>
+          <div class="text-muted small">Near Limit (≥ {{ credit_threshold|default:80 }}%)</div>
+          <div class="kpi-value">{{ credit_kpis.nearing_threshold|default:0 }}</div>
+          <div class="small text-muted">Customers approaching credit limit</div>
+        </div>
       </div>
-      <div class="col">
-        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary w-100 py-3">
-          <i class="bi bi-box-seam me-2"></i> Products
-        </a>
+      <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(138,97,0,.10), transparent 55%);"></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 kpi-card">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="kpi-icon" style="background:#ffecec;color:#a11010;"><i class="bi bi-exclamation-octagon"></i></div>
+        <div>
+          <div class="text-muted small">Over Limit</div>
+          <div class="kpi-value">{{ credit_kpis.customers_over_limit|default:0 }}</div>
+          <div class="small text-muted">Customers exceeding limit</div>
+        </div>
       </div>
-      <div class="col">
-        <a href="{% url 'purchase_create' %}" class="btn btn-outline-success w-100 py-3">
-          <i class="bi bi-truck me-2"></i> New Purchase
-        </a>
+      <div class="kpi-bg" style="background: radial-gradient(120px 120px at 70% 30%, rgba(161,16,16,.10), transparent 55%);"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Credit Overview -->
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0 card-section-title">Top Debtors</h5>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'receive_payment' %}">
+            <i class="bi bi-cash-coin me-1"></i> Receive Payment
+          </a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'customer_statement' %}">
+            <i class="bi bi-file-text me-1"></i> Statements
+          </a>
+        </div>
       </div>
-      <div class="col">
-        <a href="{% url 'sales_list' %}" class="btn btn-outline-dark w-100 py-3">
-          <i class="bi bi-receipt me-2"></i> Sales List
-        </a>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th class="text-end" style="width:140px">Balance</th>
+                <th class="text-end" style="width:120px">Limit</th>
+                <th class="text-end" style="width:100px">Usage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in top_debtors %}
+              <tr>
+                <td>{{ c.name }}</td>
+                <td class="text-end">₹ {{ c.bal|floatformat:2 }}</td>
+                <td class="text-end">₹ {{ c.credit_limit|default:0|floatformat:2 }}</td>
+                <td class="text-end">
+                  {% if c.credit_limit > 0 %}
+                    {{ c.usage_pct|floatformat:0 }}%
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted text-center">No outstanding balances</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="col">
-        <a href="{% url 'product_barcodes' %}" class="btn btn-outline-dark w-100 py-3">
-          <i class="bi bi-upc-scan me-2"></i> Print Barcodes
-        </a>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0 card-section-title">Over-Limit Customers</h5>
+        <span class="chip chip-bad">Enforce & warn via Settings</span>
       </div>
-      <div class="col">
-        <a href="{% url 'stock_add' %}" class="btn btn-outline-primary w-100 py-3">
-          <i class="bi bi-plus-square-dotted me-2"></i> Add Stock
-        </a>
-      </div>
-      <div class="col">
-        <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary w-100 py-3">
-          <i class="bi bi-people me-2"></i> Suppliers
-        </a>
-      </div>
-      <div class="col">
-        <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary w-100 py-3">
-          <i class="bi bi-person-badge me-2"></i> Customers
-        </a>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th class="text-end" style="width:140px">Balance</th>
+                <th class="text-end" style="width:120px">Limit</th>
+                <th class="text-end" style="width:140px">Excess</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in over_limit_list %}
+              <tr>
+                <td>{{ c.name }}</td>
+                <td class="text-end">₹ {{ c.bal|floatformat:2 }}</td>
+                <td class="text-end">₹ {{ c.credit_limit|default:0|floatformat:2 }}</td>
+                <td class="text-end">
+                  <span class="chip chip-bad">₹ {{ c.excess|floatformat:2 }}</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted text-center">No customers over the limit</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -274,7 +351,59 @@
   </div>
 </div>
 
-<!-- Instructions (kept) -->
+<!-- Quick Links -->
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between">
+    <h5 class="m-0 card-section-title">Quick Links</h5>
+    <small class="text-muted">Common actions at a glance</small>
+  </div>
+  <div class="card-body">
+    <div class="row row-cols-2 row-cols-md-4 g-3">
+      <div class="col">
+        <a href="{% url 'pos_sale_create' %}" class="btn btn-outline-primary w-100 py-3">
+          <i class="bi bi-cash-coin me-2"></i> POS (New Sale)
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-box-seam me-2"></i> Products
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'purchase_create' %}" class="btn btn-outline-success w-100 py-3">
+          <i class="bi bi-truck me-2"></i> New Purchase
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'sales_list' %}" class="btn btn-outline-dark w-100 py-3">
+          <i class="bi bi-receipt me-2"></i> Sales List
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'product_barcodes' %}" class="btn btn-outline-dark w-100 py-3">
+          <i class="bi bi-upc-scan me-2"></i> Print Barcodes
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'stock_add' %}" class="btn btn-outline-primary w-100 py-3">
+          <i class="bi bi-plus-square-dotted me-2"></i> Add Stock
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-people me-2"></i> Suppliers
+        </a>
+      </div>
+      <div class="col">
+        <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary w-100 py-3">
+          <i class="bi bi-person-badge me-2"></i> Customers
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Instructions -->
 <div class="card shadow-sm mt-3 sticky-help">
   <div class="card-header bg-white">
     <h6 class="m-0">Instructions</h6>
@@ -285,7 +414,7 @@
       <li>Load inventory via <b>Purchase</b> (recommended) or quick <b>Add Stock</b>.</li>
       <li>Use <b>POS</b> to sell/return; scan barcode or search by code/name.</li>
       <li>Print <b>Barcode labels</b> (A4 grids; Code128 / EAN-13).</li>
-      <li>Review <b>Sales</b>, <b>Stock</b> and <b>Purchase</b> reports; download PDFs.</li>
+      <li>Review <b>Sales</b>, <b>Stock</b>, <b>Purchase</b> & <b>Credit</b> reports; download PDFs.</li>
     </ol>
   </div>
 </div>

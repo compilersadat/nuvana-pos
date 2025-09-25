@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import forms
 from django.contrib.auth.models import User, Group, Permission
 
@@ -148,7 +149,6 @@ class RoleForm(forms.ModelForm):
 
 
 class RolePermissionForm(forms.Form):
-    # You can widen the scope later (remove the app filter) if you want all app perms
     permissions = forms.ModelMultipleChoiceField(
         queryset=Permission.objects.filter(content_type__app_label='posapp').order_by('codename'),
         required=False,
@@ -207,13 +207,19 @@ class SupplierForm(forms.ModelForm):
 
 
 class CustomerForm(forms.ModelForm):
+    """Extended for credit system."""
     class Meta:
         model = Customer
-        fields = ['name','phone','email']
+        fields = ['name','phone','email','credit_limit','sms_opt_in','call_opt_in']
         widgets = {
             'name': forms.TextInput(attrs={"class": "form-control", "placeholder": "Customer name"}),
             'phone': forms.TextInput(attrs={"class": "form-control", "placeholder": "Phone"}),
             'email': forms.EmailInput(attrs={"class": "form-control", "placeholder": "Email"}),
+            'credit_limit': forms.NumberInput(attrs={
+                "class": "form-control", "step": "0.01", "min": "0", "placeholder": "0.00"
+            }),
+            'sms_opt_in': forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            'call_opt_in': forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
 # ---------------------------
@@ -329,3 +335,80 @@ class SiteSettingForm(forms.ModelForm):
             'call_token': forms.TextInput(attrs={"class": "form-control", "placeholder": "Auth token"}),
             'call_from': forms.TextInput(attrs={"class": "form-control", "placeholder": "Caller ID / From number"}),
         }
+
+# ---------------------------
+# Credit System – new utility forms
+# ---------------------------
+
+class ReceivePaymentForm(forms.Form):
+    """
+    Record a payment received from a customer.
+    Will translate to a CustomerLedger CREDIT (reduces balance).
+    """
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.order_by('name'),
+        widget=forms.Select(attrs={
+            "class": "form-select js-enhance-select",
+            "data-allow-clear": "true",
+            "data-placeholder": "Select customer",
+        })
+    )
+    date = forms.DateField(
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"})
+    )
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0.01'),
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01", "placeholder": "0.00"})
+    )
+    reference = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Txn Ref / UTR / Cheque #"})
+    )
+    note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Optional note"})
+    )
+
+
+class CustomerChargeForm(forms.Form):
+    """
+    Post a manual charge (opening balance, fee, adjustment).
+    Will translate to a CustomerLedger DEBIT (increases balance).
+    """
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.order_by('name'),
+        widget=forms.Select(attrs={
+            "class": "form-select js-enhance-select",
+            "data-allow-clear": "true",
+            "data-placeholder": "Select customer",
+        })
+    )
+    date = forms.DateField(
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"})
+    )
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0.01'),
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01", "placeholder": "0.00"})
+    )
+    reason = forms.CharField(
+        label="Reason / Description",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Opening balance / Adjustment / Fee"})
+    )
+    note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Optional note"})
+    )
+
+
+class CustomerStatementFilterForm(forms.Form):
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.order_by('name'),
+        required=False,
+        widget=forms.Select(attrs={
+            "class": "form-select js-enhance-select",
+            "data-allow-clear": "true",
+            "data-placeholder": "All customers",
+        })
+    )
+    start = forms.DateField(required=False, widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}))
+    end   = forms.DateField(required=False, widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}))

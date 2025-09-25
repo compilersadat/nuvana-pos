@@ -1,0 +1,25 @@
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <ul class="nav nav-pills gap-2 flex-wrap">
+        <li class="nav-item">
+          <a class="btn btn-outline-primary {% if request.resolver_match.url_name == 'receive_payment' %}active{% endif %}"
+             href="{% url 'receive_payment' %}">
+            <i class="bi bi-cash-coin me-1"></i> Receive Payment
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="btn btn-outline-secondary {% if request.resolver_match.url_name == 'customer_charge' %}active{% endif %}"
+             href="{% url 'customer_charge' %}">
+            <i class="bi bi-journal-plus me-1"></i> Customer Charge
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="btn btn-outline-dark {% if request.resolver_match.url_name == 'customer_statement' %}active{% endif %}"
+             href="{% url 'customer_statement' %}">
+            <i class="bi bi-receipt me-1"></i> Statement
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+  

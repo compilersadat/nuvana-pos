@@ -1,3 +1,7 @@
+/* =========================
+   POS — UI Logic (enhanced)
+   ========================= */
+
 /* ===== Helpers ===== */
 
 function byId(id) { return document.getElementById(id); }
@@ -47,8 +51,8 @@ function addItemRow(kind) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input list="products" class="form-control form-control-sm product-input" placeholder="Code / Name / Barcode" autocomplete="off"></td>
-    <td><input type="number" min="1" value="1" class="form-control form-control-sm qty-input"></td>
-    <td><input type="number" step="0.01" min="0" value="0" class="form-control form-control-sm price-input"></td>
+    <td><input type="number" min="1" value="1" class="form-control form-control-sm qty-input text-end"></td>
+    <td><input type="number" step="0.01" min="0" value="0" class="form-control form-control-sm price-input text-end"></td>
     <td class="line-total text-end">0.00</td>
     <td style="width:52px"><button type="button" class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove row">&times;</button></td>
   `;
@@ -95,7 +99,6 @@ function recalcTotals() {
   let subtotal = 0;
   let taxTotal = 0;
 
-  const opts = qa('#products option');
   const isReturn = byId('id_is_return')?.checked;
 
   let stockProblem = false;
@@ -167,11 +170,18 @@ function recalcTotals() {
     if (btn) btn.disabled = true;
   } else {
     if (alertBox) alertBox.classList.add('d-none');
+    // Do not enable yet — credit logic may still need to disable.
     if (btn) btn.disabled = false;
   }
 
-  // optional: live credit alert if your file defines updateCreditAlert()
+  // Mark the global stock block so the credit UI won't re-enable by mistake
+  window._pos_stock_block = !!(!isReturn && stockProblem);
+
+  // Optional: live credit alert (defined in template). It may disable/enable the button.
   if (typeof updateCreditAlert === 'function') updateCreditAlert();
+
+  // If stock is still a problem, keep it disabled regardless of credit logic.
+  if (window._pos_stock_block && btn) btn.disabled = true;
 }
 
 function buildItemsJSON() {
@@ -262,17 +272,23 @@ function restoreItemsFromJSON(jsonStr) {
 /* ===== Boot ===== */
 
 document.addEventListener('DOMContentLoaded', function () {
-  console.log("pos items");
   // restore rows after validation error
   let restored = false;
   const hidden = byId('items_json');
-  console.log("pos items",hidden.value);
   if (hidden && hidden.value && hidden.value.trim().length > 2) {
     try { restored = restoreItemsFromJSON(hidden.value); } catch (_) { restored = false; }
   }
   if (!restored && !q('#items-table tbody tr')) addItemRow('sale');
 
-  // quick scan
+  // quick scan focus (F2)
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F2') {
+      const qs = byId('quick_scan');
+      if (qs) { e.preventDefault(); qs.focus(); qs.select?.(); }
+    }
+  });
+
+  // quick scan enter -> add
   const qs = byId('quick_scan');
   if (qs) {
     qs.addEventListener('keydown', function (e) {
@@ -312,6 +328,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const box = byId('pos_error');
         if (box) { box.textContent = 'Add at least one item before completing the sale.'; box.classList.remove('d-none'); }
         else alert('Add at least one item before completing the sale.');
+        return;
+      }
+      // Block if stock guard flagged a problem
+      if (window._pos_stock_block) {
+        ev.preventDefault();
+        const box = byId('pos_error');
+        if (box) { box.textContent = 'Cannot proceed: not enough stock for one or more items.'; box.classList.remove('d-none'); }
+        return;
       }
     });
   }
@@ -322,6 +346,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (el) el.addEventListener('input', recalcTotals);
   });
 
+  // credit-related live listeners
+  const paid = byId('id_paid_amount');
+  paid?.addEventListener('input', function(){ if (typeof updateCreditAlert === 'function') updateCreditAlert(); });
+
+  // try common ways to reference the customer select
+  const cust = byId('id_customer') || q('select[name="customer"]');
+  cust?.addEventListener('change', function(){ if (typeof updateCreditAlert === 'function') updateCreditAlert(); });
+
+  // initial compute
   recalcTotals();
 });
 
@@ -400,4 +433,3 @@ document.addEventListener('DOMContentLoaded', function () {
   // Global capture so it works even if quick_scan isn't focused
   document.addEventListener('keydown', onKeyDown, true);
 })();
-

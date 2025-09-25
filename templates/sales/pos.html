@@ -23,6 +23,10 @@
   .kbd { background:#f3f4f6; border:1px solid #e5e7eb; border-bottom-width:2px; border-radius:.35rem; padding:.05rem .35rem; font-size:.8rem; }
   .alert-inline { border-radius:.5rem; }
   .table-danger td { background: #fff5f5 !important; }
+  .credit-chip { font-size:.8rem; border-radius:.4rem; padding:.125rem .45rem; }
+  .credit-ok { background:#eefcf6; color:#087443; }
+  .credit-warn { background:#fff7e6; color:#8a6100; }
+  .credit-block { background:#ffecec; color:#a11010; }
 </style>
 
 <form method="post" id="pos-form" novalidate>
@@ -115,9 +119,12 @@
       </div>
     </div>
 
-    <!-- ===== Right: Summary ===== -->
+    <!-- ===== Right: Summary & Credit ===== -->
     <div class="col-12 col-lg-4">
-      <div class="card shadow-sm pos-sticky">
+      <div class="card shadow-sm pos-sticky"
+           id="credit_root"
+           data-enforce="{% if site_settings %}{{ site_settings.credit_enforce|yesno:'1,0' }}{% endif %}"
+           data-threshold="{% if site_settings %}{{ site_settings.credit_alert_threshold|default_if_none:80 }}{% else %}80{% endif %}">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
           <h6 class="m-0">Totals</h6>
           <small class="text-muted">Per-product tax auto</small>
@@ -154,9 +161,40 @@
             <label class="form-label" for="id_payment_method">Payment method</label>
             {{ form.payment_method|add_class:"form-select js-enhance-select"|attr:"data-allow-clear:true"|attr:"data-placeholder:Select payment method" }}
           </div>
-          <div class="mb-3">
+          <div class="mb-2">
             <label class="form-label" for="id_paid_amount">Paid amount</label>
             {{ form.paid_amount|add_class:"form-control"|attr:"step:0.01"|attr:"min:0" }}
+          </div>
+
+          <!-- Payment outcome -->
+          <div class="border rounded p-2 mb-2 bg-light">
+            <div class="d-flex justify-content-between small">
+              <span>Due / Change</span>
+              <span>
+                <span id="due_now" class="fw-semibold">₹ 0.00</span>
+                <span id="change_note" class="text-muted d-none">(change)</span>
+              </span>
+            </div>
+            <div class="d-flex justify-content-between small mt-1">
+              <span>Will post to credit</span>
+              <span id="credit_post" class="fw-semibold">₹ 0.00</span>
+            </div>
+          </div>
+
+          <!-- Live customer credit -->
+          <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="fw-semibold">Customer Credit</div>
+              <span id="credit_state_chip" class="credit-chip credit-ok d-none">OK</span>
+            </div>
+            <div id="credit_empty" class="small text-muted">Select a customer to view balance and limit.</div>
+            <div id="credit_panel" class="d-none small">
+              <div class="d-flex justify-content-between"><span>Balance</span><span id="cBal">₹ 0.00</span></div>
+              <div class="d-flex justify-content-between"><span>Limit</span><span id="cLim">₹ 0.00</span></div>
+              <div class="d-flex justify-content-between"><span>After this sale</span><span id="cNew">₹ 0.00</span></div>
+              <div class="d-flex justify-content-between border-top pt-1 mt-1"><span>Available after</span><span id="cAvail">₹ 0.00</span></div>
+              <div id="cMsg" class="mt-2"></div>
+            </div>
           </div>
 
           <button class="btn btn-success w-100" id="btnComplete">
@@ -214,4 +252,147 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 {% endif %}
+
+<!-- Live credit logic (invoked by your pos.js via updateCreditAlert()) -->
+<script>
+  (function(){
+    function num(val, dft=0){
+      const n = parseFloat(String(val ?? '').replace(/[₹, ]/g,''));
+      return Number.isFinite(n) ? n : dft;
+    }
+    function money(n){ return `₹ ${(Number(n)||0).toFixed(2)}`; }
+    function el(id){ return document.getElementById(id); }
+    function txt(id, v){ const n = el(id); if(n) n.textContent = v; }
+  
+    function getCustomerEl(){
+      // Try id_for_label, then name="customer" (works even with enhanced selects)
+      return document.getElementById('{{ form.customer.id_for_label }}') ||
+             document.querySelector('select[name="customer"]');
+    }
+  
+    async function fetchCredit(customerId){
+      try{
+        const url = "{% url 'customer_balance_api' 0 %}".replace('/0/', `/${customerId}/`);
+        const r = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+        if(!r.ok) throw 0;
+        return await r.json();
+      }catch(_){ return null; }
+    }
+  
+    // Exposed (called by pos.js -> recalcTotals)
+    window.updateCreditAlert = async function(){
+      const isReturn = !!el('id_is_return')?.checked;
+      const grand = num(el('grand_total')?.innerText, 0);
+      const paid  = num(el('id_paid_amount')?.value, 0);
+      const dueRaw   = isReturn ? 0 : Math.max(0, grand - paid);
+      const change   = isReturn ? 0 : Math.max(0, paid - grand);
+      const creditToPost = dueRaw; // remaining will go to credit on normal sale
+  
+      // Update Due/Change & “Will post to credit”
+      txt('due_now', money(change>0 ? change : dueRaw));
+      const note = el('change_note');
+      if (note){ note.classList[change>0 ? 'remove' : 'add']('d-none'); }
+      txt('credit_post', money(creditToPost));
+  
+      const btn  = el('btnComplete');
+      const err  = el('pos_error');
+      const root = el('credit_root');
+      const enforce   = (root?.dataset?.enforce === '1'); // default false
+      const threshold = parseFloat(root?.dataset?.threshold || '80');
+  
+      const panel = el('credit_panel');
+      const empty = el('credit_empty');
+      const chip  = el('credit_state_chip');
+      const msg   = el('cMsg');
+  
+      // Returns: hide credit area; handled as credit notes by backend
+      if (isReturn){
+        panel?.classList.add('d-none'); empty?.classList.remove('d-none'); chip?.classList.add('d-none');
+        err?.classList.add('d-none'); if (btn) btn.disabled = false; return;
+      }
+  
+      // Need a customer element & value
+      const custEl = getCustomerEl();
+      const custId = custEl && custEl.value ? custEl.value : null;
+  
+      // If no customer selected
+      if (!custId){
+        panel?.classList.add('d-none'); empty?.classList.remove('d-none'); chip?.classList.add('d-none');
+        // Only warn/disable when we actually need credit posting
+        if (creditToPost > 0){
+          if (err){
+            err.innerHTML = 'Partial payment detected. <b>Select a customer</b> to post the remaining ' +
+                            money(creditToPost) + ' to credit, or increase Paid amount.';
+            err.classList.remove('d-none');
+          }
+          if (btn) btn.disabled = true;
+        } else {
+          err?.classList.add('d-none');
+          if (btn) btn.disabled = false;
+        }
+        return;
+      }
+  
+      // We have a customer: show their credit info ALWAYS
+      const info = await fetchCredit(custId);
+      if (!info){
+        // Fail-open on display; backend still enforces
+        panel?.classList.remove('d-none'); empty?.classList.add('d-none'); chip?.classList.add('d-none');
+        if (btn) btn.disabled = false; err?.classList.add('d-none'); return;
+      }
+  
+      const bal = num(info.balance,0);
+      const lim = num(info.credit_limit,0);
+      const newBal = bal + creditToPost;
+      const avail  = lim>0 ? (lim - newBal) : 0;
+      const usagePct = lim>0 ? (newBal/lim*100) : 0;
+  
+      // Fill panel
+      txt('cBal',  money(bal));
+      txt('cLim',  money(lim));
+      txt('cNew',  money(newBal));
+      txt('cAvail', money(avail));
+  
+      panel?.classList.remove('d-none'); empty?.classList.add('d-none');
+      chip?.classList.remove('d-none','credit-ok','credit-warn','credit-block');
+      msg.className = 'mt-2 small';
+      err?.classList.add('d-none');
+  
+      // If there is credit to post, evaluate limit; otherwise just show “OK”
+      if (creditToPost > 0 && lim > 0 && newBal > lim){
+        chip.textContent = 'OVER LIMIT';
+        chip.classList.add('credit-block');
+        msg.innerHTML = 'This sale exceeds the customer’s credit limit by <b>' + money(newBal - lim) + '</b>.';
+        if (enforce && btn) btn.disabled = true; else if (btn) btn.disabled = false;
+        if (err){
+          err.innerHTML = enforce
+            ? 'Credit limit exceeded. Reduce due or collect more payment.'
+            : 'Credit limit exceeded. You can still proceed (enforcement disabled).';
+          err.classList.remove('d-none');
+        }
+      } else {
+        const warn = (creditToPost > 0 && lim > 0 && usagePct >= (threshold||80));
+        chip.textContent = warn ? 'NEAR LIMIT' : 'OK';
+        chip.classList.add(warn ? 'credit-warn' : 'credit-ok');
+        msg.textContent = (lim>0)
+          ? `Usage after sale: ${usagePct.toFixed(0)}% of limit.`
+          : 'No credit limit set for this customer.';
+        if (btn) btn.disabled = false;
+      }
+    };
+  
+    // Wire changes that affect credit UI
+    document.addEventListener('DOMContentLoaded', function(){
+      const paid = el('id_paid_amount');
+      const cust = getCustomerEl();
+      const ret  = el('id_is_return');
+      paid?.addEventListener('input', window.updateCreditAlert);
+      cust?.addEventListener('change', window.updateCreditAlert);
+      ret?.addEventListener('change', window.updateCreditAlert);
+      // Initial run
+      window.updateCreditAlert();
+    });
+  })();
+  </script>
+  
 {% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Customer Statement — Stationery POS{% endblock %}
+{% block breadcrumb %}Credit / Statement{% endblock %}
+
+{% block content %}
+{% include "credit/_nav.html" %}
+
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-receipt text-dark"></i>
+      <h5 class="m-0">Customer Statement</h5>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Print
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form class="row g-2 mb-3" method="get">
+      <div class="col-md-4">
+        <label class="form-label">Customer</label>
+        {{ form.customer}}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Start</label>
+        {{ form.start }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">End</label>
+        {{ form.end }}
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <div class="d-flex gap-2 w-100">
+          <button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filter</button>
+          <a href="{% url 'customer_statement' %}" class="btn btn-light">Reset</a>
+        </div>
+      </div>
+    </form>
+
+    <!-- KPI -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted">Total Debit</div>
+            <div class="h4 m-0">₹ {{ total_debit|floatformat:2 }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted">Total Credit</div>
+            <div class="h4 m-0">₹ {{ total_credit|floatformat:2 }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted">Closing Balance</div>
+            <div class="h4 m-0 {% if closing > 0 %}text-danger{% else %}text-success{% endif %}">
+              ₹ {{ closing|floatformat:2 }}
+            </div>
+            <div class="small text-muted">Positive means customer owes the store</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lines -->
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th style="width:120px">Date</th>
+            <th>Description</th>
+            <th class="text-end" style="width:140px">Debit</th>
+            <th class="text-end" style="width:140px">Credit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lines %}
+          <tr>
+            <td>{{ l.date }}</td>
+            <td>{{ l.description }}</td>
+            <td class="text-end">{{ l.debit|floatformat:2 }}</td>
+            <td class="text-end">{{ l.credit|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">No ledger entries</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
