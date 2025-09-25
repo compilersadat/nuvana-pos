@@ -12,6 +12,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, Cast
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string  # NEW
 
 from .forms import (
     ProductForm, SiteSettingForm, SupplierForm, CustomerForm,
@@ -459,6 +460,57 @@ def customer_create(request):
         form = CustomerForm()
     return render(request, 'customers/form.html', {'form': form, 'title': 'New Customer'})
 
+# ---------- Helpers ----------
+def _subset_form(form: CustomerForm, preferred_fields=None):
+    """
+    Restrict the form to a smaller subset for the quick modal,
+    while preserving original widgets/validators.
+    """
+    preferred_fields = preferred_fields or ['name', 'phone', 'email', 'credit_limit', 'address']
+    keep = [f for f in preferred_fields if f in form.fields]
+    form.fields = {k: form.fields[k] for k in keep}
+    return form
+
+
+# ---------- Quick Add endpoints ----------
+@login_required
+def customer_quick_new(request):
+    """
+    Renders a subset of CustomerForm as HTML (to be injected into the modal body).
+    """
+    form = CustomerForm()
+    form = _subset_form(form)
+    return render(request, 'customers/_quick_form.html', {'form': form})
+
+
+@login_required
+def customer_quick_create(request):
+    """
+    Validates & creates via CustomerForm. Accepts JSON or form-encoded.
+    Returns JSON:
+      {ok:true, id:<pk>, display:"CODE - Name"}  OR
+      {ok:false, errors:{field:[...], '__all__':[...]} }
+    """
+    if request.content_type == 'application/json':
+        payload = json.loads(request.body or '{}')
+        form = CustomerForm(payload)
+    else:
+        form = CustomerForm(request.POST)
+
+    # Optional: keep the same subset for errors rendering consistency
+    form = _subset_form(form)
+
+    if form.is_valid():
+        obj: Customer = form.save()
+        code = getattr(obj, 'code', None)
+        name = getattr(obj, 'name', str(obj))
+        display = f"{code} - {name}" if code else name
+        return JsonResponse({'ok': True, 'id': obj.pk, 'display': display})
+
+    return JsonResponse({'ok': False, 'errors': form.errors}, status=400)
+
+
+
 
 # ----------------
 # Stock Adjustments
@@ -541,6 +593,15 @@ def pos_sale_create(request):
         .filter(stock_sum__gt=1)
     )
 
+    def is_ajax_req(req):
+        return req.headers.get('x-requested-with') == 'XMLHttpRequest' or req.POST.get('_ajax') == '1'
+
+    def ajax_error(message, *, status=400, extra=None):
+        payload = {'ok': False, 'error': message}
+        if extra:
+            payload.update(extra)
+        return JsonResponse(payload, status=status)
+
     if request.method == 'POST':
         form = SaleForm(request.POST)
         vals = request.POST.getlist('items_json')
@@ -582,11 +643,12 @@ def pos_sale_create(request):
                             insufficient.append(f"{labels.get(pid, f'ID {pid}')} (requested {want}, in stock {have})")
 
                     if insufficient:
-                        messages.error(request, "Not enough stock for:\n" + "\n".join(insufficient))
+                        msg = "Not enough stock for:\n" + "\n".join(insufficient)
+                        if is_ajax_req(request):  # NEW
+                            return ajax_error(msg)
+                        messages.error(request, msg)
                         return render(request, 'sales/pos.html', {
-                            'form': form,
-                            'products': products,
-                            'items_json': items_json,
+                            'form': form, 'products': products, 'items_json': items_json,
                         })
 
             # --- totals (pre-sign) ---
@@ -605,7 +667,7 @@ def pos_sale_create(request):
             sale.tax = tax_total
             sale.total = (subtotal - sale.discount) + tax_total
 
-            # --- CREDIT ENFORCEMENT (only for normal sale & with customer) ---
+            # --- CREDIT ENFORCEMENT ---
             will_add_debit = Decimal('0.00')
             if not sale.is_return and sale.customer:
                 due_if_sale = sale.total - (sale.paid_amount or Decimal('0'))
@@ -613,6 +675,8 @@ def pos_sale_create(request):
                     will_add_debit = due_if_sale
                     msg = _enforce_credit_or_block(sale.customer, will_add_debit)
                     if msg:
+                        if is_ajax_req(request):  # NEW
+                            return ajax_error(msg)
                         messages.error(request, msg)
                         return render(request, 'sales/pos.html', {
                             'form': form, 'products': products, 'items_json': items_json
@@ -655,16 +719,30 @@ def pos_sale_create(request):
                 _maybe_credit_alert(sale.customer, will_add_debit)
                 messages.warning(request, f"Credit used: ₹{will_add_debit:.2f}. New balance ₹{(sale.customer.balance):.2f}.")
 
+            # === NEW/CHANGED: AJAX branch returns rendered invoice HTML ===
+            if is_ajax_req(request):
+                # Render the same template you use in invoice_view
+                # Adjust the path/context to your actual invoice template
+                html = render_to_string('sales/invoice.html', {'sale': sale}, request=request)
+                return JsonResponse({
+                    'ok': True,
+                    'sale_id': sale.id,
+                    'html': html,
+                })
+
             messages.success(request, f"{'Return' if sale.is_return else 'Sale'} {'CRN' if sale.is_return else 'INV'}-{sale.id} saved.")
             return redirect('invoice_view', sale_id=sale.id)
 
         # invalid
+        if is_ajax_req(request):  # NEW
+            return ajax_error('Form invalid or no items.', extra={'form_errors': form.errors})
         messages.error(request, 'Form invalid or no items.')
         return render(request, 'sales/pos.html', {'form': form, 'products': products, 'items_json': items_json})
 
     # GET
     form = SaleForm(initial={'date': date.today()})
     return render(request, 'sales/pos.html', {'form': form, 'products': products})
+
 
 
 @login_required

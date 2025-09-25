@@ -1,0 +1,30 @@
+{# templates/customers/_quick_form.html #}
+{% load widget_tweaks %}
+
+<div class="row g-3">
+  {% if form.non_field_errors %}
+    <div class="col-12">
+      <div class="alert alert-danger py-2 px-3 mb-2">{{ form.non_field_errors }}</div>
+    </div>
+  {% endif %}
+
+  {% for field in form %}
+    {% if field.field.widget.input_type == 'checkbox' %}
+      <div class="col-12">
+        <div class="form-check">
+          {{ field|add_class:"form-check-input" }}
+          <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          <div class="invalid-feedback d-block d-none" data-error-for="{{ field.html_name }}"></div>
+        </div>
+      </div>
+    {% else %}
+      <div class="col-12">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field|add_class:"form-control" }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        <div class="invalid-feedback d-block d-none" data-error-for="{{ field.html_name }}"></div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>

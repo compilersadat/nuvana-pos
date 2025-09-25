@@ -21,6 +21,8 @@ urlpatterns = [
 
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/new/', views.customer_create, name='customer_create'),
+    path('quick/new/', views.customer_quick_new, name='customer_quick_new'),          # GET -> partial form HTML
+    path('quick/create/', views.customer_quick_create, name='customer_quick_create'), # POST -> JSON
 
     # Purchases
     path('purchases/new/', views.purchase_create, name='purchase_create'),

@@ -27,6 +27,13 @@
   .credit-ok { background:#eefcf6; color:#087443; }
   .credit-warn { background:#fff7e6; color:#8a6100; }
   .credit-block { background:#ffecec; color:#a11010; }
+  /* Print-only view: show only #invoice-print */
+@media print {
+  body * { visibility: hidden !important; }
+  #invoice-print, #invoice-print * { visibility: visible !important; }
+  #invoice-print { position: absolute; inset: 0; margin: 0; padding: 0; }
+}
+
 </style>
 
 <form method="post" id="pos-form" novalidate>
@@ -52,6 +59,9 @@
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow" title="Add item (Alt + +)">
               <i class="bi bi-plus-circle me-1"></i>Add Item
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#quickCustomerModal">
+              <i class="bi bi-person-plus me-1"></i>New Customer
             </button>
             <button type="button" class="btn btn-sm btn-outline-danger" id="btnClear" title="Clear all rows">
               <i class="bi bi-trash me-1"></i>Clear
@@ -80,7 +90,7 @@
           <!-- Header inputs -->
           <div class="row g-3 mb-2">
             <div class="col-md-6">
-              <label class="form-label">Customer</label>
+                <label class="form-label ">Customer</label>
               {{ form.customer|add_class:"form-select js-enhance-select"|attr:"data-allow-clear:true"|attr:"data-placeholder:Select customer" }}
             </div>
             <div class="col-md-3">
@@ -210,6 +220,8 @@
     </div>
   </div>
 </form>
+<!-- Container that holds rendered invoice HTML for printing -->
+<div id="invoice-print" class="d-none"></div>
 
 <!-- Product catalog for <datalist> -->
 <datalist id="products">
@@ -225,6 +237,31 @@
     </option>
   {% endfor %}
 </datalist>
+<!-- Quick Add Customer Modal -->
+<div class="modal fade" id="quickCustomerModal" tabindex="-1" aria-labelledby="quickCustomerLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="quickCustomerLabel">Add Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div id="qcBody" class="modal-body">
+        <div class="text-center py-4" id="qcLoading">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <div class="mt-2 small text-muted">Loading…</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="qcSubmit">
+          <i class="bi bi-check2 me-1"></i>Save & Select
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {# Prefill rows when editing an existing sale — keeps your current JS hooks #}
 {% if editing and prefill_items %}
@@ -394,5 +431,287 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   })();
   </script>
+
+<script>
+  (function(){
+    const URL_NEW    = "{% url 'customer_quick_new' %}";
+    const URL_CREATE = "{% url 'customer_quick_create' %}";
   
+    function getCookie(name){
+      const v = document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='));
+      return v ? decodeURIComponent(v.split('=')[1]) : null;
+    }
+    const csrftoken = getCookie('csrftoken');
+  
+    function selectEl(){
+      return document.getElementById('{{ form.customer.id_for_label }}') ||
+      document.querySelector('select[name="customer"]');
+    }
+  
+    function injectAndSelectCustomer(id, label){
+      const sel = selectEl(); if (!sel) return;
+      let opt = sel.querySelector(`option[value="${id}"]`);
+      if (!opt) { opt = new Option(label || `#${id}`, id, true, true); sel.add(opt); }
+      sel.value = String(id);
+      // If using select enhancer (Select2/Choices), trigger change
+      sel.dispatchEvent(new Event('change', {bubbles:true}));
+      // Update credit panel if your POS wires it
+      if (window.updateCreditAlert) window.updateCreditAlert();
+    }
+  
+    function clearErrors(scope){
+      scope.querySelectorAll('[data-error-for]').forEach(el=>{
+        el.classList.add('d-none');
+        el.textContent = '';
+      });
+    }
+    function applyErrors(scope, errors){
+      Object.entries(errors || {}).forEach(([field, msgs])=>{
+        const target = scope.querySelector(`[data-error-for="${field}"]`);
+        if (target) {
+          target.textContent = Array.isArray(msgs) ? msgs.join(' ') : String(msgs||'');
+          target.classList.remove('d-none');
+        }
+      });
+    }
+  
+    async function loadQuickForm(){
+      const body = document.getElementById('qcBody');
+      const r = await fetch(URL_NEW, {headers: {'X-Requested-With':'XMLHttpRequest'}});
+      const html = await r.text();
+      body.innerHTML = html;
+    }
+  
+    async function submitQuickForm(){
+      const body = document.getElementById('qcBody');
+      const btn = document.getElementById('qcSubmit');
+      if (!body || !btn) return;
+  
+      clearErrors(body);
+  
+      // Build FormData from the rendered quick form fields
+      const fd = new FormData();
+      body.querySelectorAll('[name]').forEach(el=>{
+        if (el.type === 'checkbox') {
+          if (el.checked) fd.append(el.name, 'on');
+        } else {
+          fd.append(el.name, el.value);
+        }
+      });
+  
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+  
+      try{
+        const r = await fetch(URL_CREATE, {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrftoken || '', 'X-Requested-With':'XMLHttpRequest'},
+          body: fd
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) {
+          applyErrors(body, data.errors || {'__all__': ['Could not save.']});
+          return;
+        }
+        injectAndSelectCustomer(data.id, data.display);
+        const modalEl = document.getElementById('quickCustomerModal');
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.hide();
+      } catch(e){
+        applyErrors(body, {'__all__': ['Network error. Please try again.']});
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Save & Select';
+      }
+    }
+  
+    document.addEventListener('DOMContentLoaded', function(){
+      const modalEl = document.getElementById('quickCustomerModal');
+      const submit  = document.getElementById('qcSubmit');
+  
+      modalEl?.addEventListener('show.bs.modal', function(){
+        // show spinner then load
+        const body = document.getElementById('qcBody');
+        body.innerHTML = `
+          <div class="text-center py-4">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+            <div class="mt-2 small text-muted">Loading…</div>
+          </div>`;
+        loadQuickForm();
+      });
+      submit?.addEventListener('click', submitQuickForm);
+    });
+
+
+  })();
+  </script>
+
+<script>
+  (function(){
+    const form = document.getElementById('pos-form');
+    const printBox = document.getElementById('invoice-print');
+    const completeBtn = document.getElementById('btnComplete');
+    const errorBox = document.getElementById('pos_error');
+  
+    function getCookie(name){
+      const v = document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='));
+      return v ? decodeURIComponent(v.split('=')[1]) : null;
+    }
+    const csrftoken = getCookie('csrftoken');
+  
+    function showError(msg){
+      if (!errorBox) { alert(msg); return; }
+      errorBox.innerHTML = msg;
+      errorBox.classList.remove('d-none');
+    }
+  
+    async function submitPOSAjax(ev){
+      ev.preventDefault();
+  
+      // Clear any old errors
+      if (errorBox) errorBox.classList.add('d-none');
+  
+      // Button UX
+      const originalHTML = completeBtn ? completeBtn.innerHTML : null;
+      if (completeBtn){
+        completeBtn.disabled = true;
+        completeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing…';
+      }
+  
+      try {
+        // Build FormData and mark as AJAX
+        const fd = new FormData(form);
+        fd.append('_ajax', '1');
+  
+        const r = await fetch(form.action || window.location.href, {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrftoken || '', 'X-Requested-With': 'XMLHttpRequest'},
+          body: fd
+        });
+  
+        const data = await r.json().catch(()=>null);
+        if (!r.ok || !data) {
+          showError('Could not complete sale. Please try again.');
+          return;
+        }
+        if (!data.ok) {
+          const msg = data.error || 'Form invalid or no items.';
+          showError(msg);
+          return;
+        }
+  
+        // Inject invoice HTML and print
+        if (printBox) {
+          printBox.innerHTML = data.html || '';
+          printBox.classList.remove('d-none');
+  
+          // Let the browser render first
+          requestAnimationFrame(() => {
+            window.print();
+  
+            // After print, clean up & optionally clear POS UI
+            setTimeout(() => {
+              printBox.classList.add('d-none');
+              printBox.innerHTML = '';
+  
+              // OPTIONAL: clear your cart/items if you have a helper
+              if (typeof window.clearPOS === 'function') {
+                try { window.clearPOS(); } catch(_) {}
+              } else {
+                // Fallback: reload fresh POS page (comment out if not desired)
+                 window.location.reload();
+              }
+            }, 250);
+          });
+        }
+  
+      } catch (e) {
+        showError('Network error. Please try again.');
+      } finally {
+        if (completeBtn){
+          completeBtn.disabled = false;
+          if (originalHTML) completeBtn.innerHTML = originalHTML;
+        }
+      }
+    }
+  
+    document.addEventListener('DOMContentLoaded', function(){
+      if (!form) return;
+      // Intercept form submit
+      form.addEventListener('submit', submitPOSAjax);
+  
+      // Also support shortcuts you showed in UI: Ctrl+Enter, F9
+      form.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || e.key === 'F9') {
+          e.preventDefault();
+          submitPOSAjax(e);
+        }
+      });
+    });
+  })();
+  </script>
+  
+  <script>
+    (function(){
+      const paidEl     = document.getElementById('id_paid_amount');
+      const grandEl    = document.getElementById('grand_total');
+      const isReturnEl = document.getElementById('id_is_return');
+    
+      if (!paidEl || !grandEl) return;
+    
+      let paidDirty = false;
+    
+      function parseMoney(txt){
+        if (txt == null) return 0;
+        const n = parseFloat(String(txt).replace(/[₹, ]/g, ''));
+        return Number.isFinite(n) ? n : 0;
+      }
+    
+      function setPaidIfNeeded(){
+        if (paidDirty) return; // don't override operator input
+        const isReturn = !!isReturnEl?.checked;
+        const g = parseMoney(grandEl.textContent);
+        const suggested = isReturn ? 0 : Math.max(0, g);
+        const current   = parseMoney(paidEl.value);
+    
+        // Only update if empty or notably different
+        if (!paidEl.value || Math.abs(current - suggested) > 0.009){
+          paidEl.value = suggested.toFixed(2);
+          if (typeof window.updateCreditAlert === 'function') {
+            try { window.updateCreditAlert(); } catch(_) {}
+          }
+        }
+      }
+    
+      // Mark as dirty once the cashier types/changes
+      ['input','change','paste','keydown'].forEach(ev => {
+        paidEl.addEventListener(ev, () => { paidDirty = true; });
+      });
+    
+      // If Return toggles on and user hasn't typed, default to 0.00
+      isReturnEl?.addEventListener('change', () => {
+        if (!paidDirty) {
+          paidEl.value = '0.00';
+          if (typeof window.updateCreditAlert === 'function') {
+            try { window.updateCreditAlert(); } catch(_) {}
+          }
+        }
+      });
+    
+      // Watch Grand Total for changes (items add/remove, discount, etc.)
+      if ('MutationObserver' in window) {
+        const mo = new MutationObserver(setPaidIfNeeded);
+        mo.observe(grandEl, { childList: true, characterData: true, subtree: true });
+      }
+    
+      // Initial fill (let your totals calc run first)
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(setPaidIfNeeded, 60);
+      });
+    
+      // Expose a helper (optional): call from your pos.js after recalcTotals()
+      window.autofillPaidFromGrandTotal = setPaidIfNeeded;
+    })();
+    </script>
+    
 {% endblock %}
